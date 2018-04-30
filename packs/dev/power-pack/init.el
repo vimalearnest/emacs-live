@@ -4,6 +4,7 @@
 (require 'iy-go-to-char)
 (require 'lively)
 
+(live-load-config-file "marshal-conf.el")
 (live-load-config-file "volatile-highlights-conf.el")
 (live-load-config-file "yasnippet-conf.el")
 (live-load-config-file "undo-tree-conf.el")
@@ -18,3 +19,4 @@
 (live-load-config-file "git-gutter-conf.el")
 (live-load-config-file "floobits-conf.el")
 (live-load-config-file "wc-mode-conf.el")
+
