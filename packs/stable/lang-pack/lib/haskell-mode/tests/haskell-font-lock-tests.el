@@ -1,3 +1,4 @@
+;;  -*- lexical-binding: t -*-
 (require 'ert)
 (require 'haskell-test-utils)
 (require 'haskell-font-lock)
@@ -110,6 +111,38 @@
 
      ("<=<" "." haskell-operator-face))))
 
+(ert-deftest haskell-syntactic-test-18 ()
+  "Backtick operators"
+  (check-properties
+   '(" `fmap1`"
+     " ` fmap2 `"
+     " ` {- C1 -} M.fmap3 {- C2 -} `")
+   '(("`" t haskell-operator-face)
+     ("fmap1" t haskell-operator-face)
+     ("`" t haskell-operator-face)
+
+     ("`" t haskell-operator-face)
+     ("fmap2" t haskell-operator-face)
+     ("`" t haskell-operator-face)
+
+     ("`" t haskell-operator-face)
+     ("C1" t font-lock-comment-face)
+     ("fmap3" t haskell-operator-face)
+     ("C2" t font-lock-comment-face)
+     ("`" t haskell-operator-face))))
+
+(ert-deftest haskell-syntactic-test-18a-multiline ()
+  "Backtick operators multiline"
+  ;; strangely thins works in interactive session
+  :expected-result :failed
+  (check-properties
+   '(" `"
+     " fmap "
+     "   `")
+   '(("`" t haskell-operator-face)
+     ("fmap" t haskell-operator-face)
+     ("`" t haskell-operator-face))))
+
 (ert-deftest haskell-syntactic-test-9a ()
   "Syntax for hierarchical modules when on the first line."
   ;; note that quite many things here are not consistent but for now
@@ -155,6 +188,9 @@
      "{-# pragma1 #-}"
      "{-# non_pragma2 -}"
      "{- non_pragma3 #-}"
+     "{-@ liquid_haskell @-}"
+     "{-@ non_liquid_haskell_2 -}"
+     "{- non_liquid_haskell_3 @-}"
      )
    '(("Cons0" "w" haskell-constructor-face)
      ("Comm1" "w" font-lock-comment-face)
@@ -166,9 +202,13 @@
      ("Comm6" "w" font-lock-comment-face)
      ("Cons7"  "w" haskell-constructor-face)
      ("pragma1"  "w" haskell-pragma-face)
-     ("non_pragma2"  "w" font-lock-comment-face)
+     ("non_pragma2"  "w_" font-lock-comment-face)
 
-     ("non_pragma3" "w" font-lock-comment-face))))
+     ("non_pragma3" "w_" font-lock-comment-face)
+     ("liquid_haskell"  "w_" haskell-liquid-haskell-annotation-face)
+     ("non_liquid_haskell_2"  "w_" font-lock-comment-face)
+
+     ("non_liquid_haskell_3" "w_" font-lock-comment-face))))
 
 
 (ert-deftest haskell-syntactic-string-vs-comment-escape ()
@@ -209,7 +249,7 @@
    '(("1" "w" nil)
      ("Cons2" "w" haskell-constructor-face))))
 
-(ert-deftest haskell-syntactic-test-11a ()
+(ert-deftest haskell-haddock-01 ()
   "Syntax for haddock comments"
   (check-properties
    '(" -- | Dcom1"                      ; haddocks
@@ -253,6 +293,31 @@
      ("Dcom16" "w" font-lock-doc-face)
      ("Dcom17" "w" font-lock-doc-face)
      )))
+
+(ert-deftest haskell-haddock-02 ()
+  "Syntax for italic and bold in haddock comments"
+
+  ;; Emacs 23 does not have `add-face-text-property'
+  :expected-result (if (fboundp 'add-face-text-property)
+                       :passed
+                     :failed)
+  (check-properties
+   '("-- | haddock"
+     "-- /it1/ nonit2 /it3/"
+     "-- /it\\/4/ nonit5"
+     "-- __/boldit1/__"
+     "-- /__boldit2__/"
+     "-- __bold_bold_bold__"
+     "-- __/unfinished")
+   '(("/it1/" t ((:slant italic) font-lock-doc-face))
+     ("nonit2" t font-lock-doc-face)
+     ("/it3/" t ((:slant italic) font-lock-doc-face))
+     ("/it\\/4/" t ((:slant italic) font-lock-doc-face))
+     ("nonit5" t font-lock-doc-face)
+     ("boldit1" t ((:weight bold) (:slant italic) font-lock-doc-face))
+     ("boldit2" t ((:slant italic) (:weight bold) font-lock-doc-face))
+     ("__bold_bold_bold__" t ((:weight bold) font-lock-doc-face))
+     ("unfinished" t font-lock-doc-face))))
 
 (ert-deftest haskell-syntactic-test-11b ()
   "Syntax for haddock comments"
@@ -303,6 +368,25 @@
      ("." t haskell-operator-face)
      )))
 
+(ert-deftest haskell-syntactic-preprocessor-01 ()
+  (check-properties
+   '("  # NoPreproc"
+     "#preproc"
+     "#prep1    \\"
+     "    Prep2"
+     "Cons")
+   '(("NoPreproc" t haskell-constructor-face)
+     ("preproc" t font-lock-preprocessor-face)
+     ("prep1" t font-lock-preprocessor-face)
+     ("Prep2" t font-lock-preprocessor-face)
+     ("Cons" t haskell-constructor-face))))
+
+(ert-deftest haskell-syntactic-preprocessor-02 ()
+  (check-properties
+   '"#preproc\\\ncont\\" ;; backslash is last char in buffer
+   '(("preproc" t font-lock-preprocessor-face)
+     ("cont" t font-lock-preprocessor-face)
+     ("\\" t font-lock-preprocessor-face))))
 
 (ert-deftest haskell-syntactic-test-quasiquoter-1 ()
   "Basic syntax for QuasiQuote"
@@ -435,6 +519,17 @@
    '("Q +++ 12.12")
    '(("+++" t haskell-definition-face))))
 
+(ert-deftest haskell-syntactic-definition-face-4 ()
+  (check-properties
+   '("_test'")
+   '(("_test'" t nil))))
+
+(ert-deftest haskell-syntactic-definition-face-5 ()
+  (check-properties
+   '("_test' _")
+   '(("_test'" t haskell-definition-face))))
+
+
 (ert-deftest haskell-literate-bird-1 ()
   (check-properties
    '("Comment1"
@@ -566,6 +661,13 @@
     '("foo role = 3")
     '(("foo" "w" haskell-definition-face)
       ("role" "w" nil))))
+
+(ert-deftest haskell-forall-in-type ()
+  (check-properties
+   '("forall = 23"
+     "zonk :: forall x . x -> x")
+   '(("forall" "w" haskell-definition-face)
+     ("forall" "w" haskell-keyword-face))))
 
 (ert-deftest haskell-unterminated-string-1 ()
   (check-properties
@@ -858,3 +960,73 @@
      ("Y" t haskell-constructor-face)
      ("Z" t haskell-type-face)
      ("C" t haskell-constructor-face))))
+
+(ert-deftest haskell-type-colors-31 ()
+  (check-properties
+   ;; open parentheses do not keep type decl open because there might
+   ;; be an unclosed parenthesis stretching to the end of file and
+   ;; that is very costly to check
+   '("x :: (OpenParen"
+     "   NotType)")
+   '(("OpenParen" t haskell-type-face)
+     ("NotType" t haskell-constructor-face))))
+
+(ert-deftest haskell-type-colors-32 ()
+  (check-properties
+   ;; keywords in comments or strings should not create problems
+   '("flagSpec \"partial-type-signatures\"     Opt_WarnPartialTypeSignatures,"
+     "{- class -} Cons2"
+     "-- type"
+     " Cons3")
+   '(("Opt_WarnPartialTypeSignatures" t haskell-constructor-face)
+     ("Cons2" t haskell-constructor-face)
+     ("Cons3" t haskell-constructor-face))))
+
+(ert-deftest haskell-pattern-1 ()
+  "Fontify the \"pattern\" keyword in contexts related to pattern synonyms."
+  (check-properties
+   '("pattern A = B"
+     "pattern A <- B"
+     "pattern A ← B"
+     "pattern A n <- (subtract 1 -> n) where A n = n + 1"
+     "module Main (pattern A) where"
+     "pattern A :: a -> B"
+     "pattern A :: (C a) => a -> B"
+     "pattern A :: (C a) => a -> B"
+     "pattern A :: (C a) => () => a -> B"
+     "pattern A :: (C a) => () => a -> B"
+     "pattern A :: (C a) => (C a) => a -> B"
+     "pattern A :: (C a) => (C a) => a -> B")
+   '(("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("module"  t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("where"   t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face))))
+
+(ert-deftest haskell-pattern-2 ()
+  (check-properties
+   '("pattern :: Int"
+     "pattern = 3")
+   '(("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face))))
+
+(ert-deftest haskell-pattern-3 ()
+  (check-properties
+   '("foo :: (a -> pattern) -> a -> pattern"
+     "foo pattern x = pattern x"
+     "bar = pattern where pattern = 5")
+   '(("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face)
+     ("pattern" t haskell-keyword-face))))

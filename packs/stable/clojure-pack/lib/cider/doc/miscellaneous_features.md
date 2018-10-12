@@ -10,8 +10,8 @@ using <kbd>M-x</kbd> `cider-read-and-eval` (bound in `cider-mode` buffers to
 <kbd>C-c M-:</kbd>).  <kbd>TAB</kbd> completion will work in the minibuffer,
 just as in a REPL/source buffer.
 
-Pressing <kbd>C-c C-v .</kbd> in a Clojure buffer will insert the defun 
-at point into the minibuffer for evaluation. This way you can pass arguments 
+Pressing <kbd>C-c C-v .</kbd> in a Clojure buffer will insert the defun
+at point into the minibuffer for evaluation. This way you can pass arguments
 to the function and evaluate it and see the result in the minibuffer.
 
 You can also enable `eldoc-mode` in the minibuffer by adding the following to your
@@ -85,8 +85,8 @@ That's it! Once your code executes, the regular old buffer on the left will turn
 into the brilliant show of lights on the right.
 
 <p align="center">
-  <img src="../images/enlighten_disabled.png" width="300" />
-  <img src="../images/enlighten_enabled.png" width="300" />
+  <img src="images/enlighten_disabled.png" height="300" />
+  <img src="images/enlighten_enabled.png" height="300" />
 </p>
 
 To stop displaying the locals you'll have to disable `cider-enlighten-mode`
@@ -145,6 +145,9 @@ and
 (setq cider-refresh-show-log-buffer t)
 ```
 
+* By default, all modified Clojure buffers are prompted to be saved. This
+  behaviour can be customized using `cider-save-files-on-cider-refresh`.
+
 ## Tracing function execution
 
 You can trace the results produced by functions using <kbd>C-c M-t v</kbd>.  The
@@ -189,6 +192,36 @@ Keyboard shortcut               | Description
 <kbd>^</kbd>                    | Browse all namespaces.
 <kbd>n</kbd>                    | Go to next line.
 <kbd>p</kbd>                    | Go to previous line.
+
+## Spec browser
+
+If you are using  Clojure 1.9.0-alpha16 or newer you can browse the Clojure specs registry.
+
+If you know what you are looking for, you can type <kbd>M-x</kbd> `cider-browse-spec`.
+It will prompt you for a spec name to browse to, hit <kbd>RET</kbd> and you will find yourself
+at the spec browser.
+
+![Spec Browser](images/spec_browser.png)
+
+You can also type the command <kbd>M-x</kbd> `cider-browse-spec-all`. This command will prompt you for 
+a regex you can use to filter out the specs you are interested in, and will also take you to the spec browser. 
+
+![Spec Browser](images/spec_browser_all.png)
+
+Once in the browser you can use your mouse or the keybindings below to navigate deeper into sub specs.
+
+Keyboard shortcut               | Description
+--------------------------------|-------------------------------
+<kbd>RET</kbd>                  | Browse the spec at point.
+<kbd>^</kbd>                    | Go up in the navigation stack.
+<kbd>n</kbd>                    | Go to next spec.
+<kbd>p</kbd>                    | Go to previous spec.
+<kbd>e</kbd>                    | Generate an example for the current browser spec.
+
+If your project contains a version of `org.clojure/test.check`, you can type <kbd>e</kbd> when browsing 
+a spec to generate and print an example of it.
+
+![Spec Browser Example](images/spec_browser_gen_example.png)
 
 ## Documentation buffers include "See Also" references
 

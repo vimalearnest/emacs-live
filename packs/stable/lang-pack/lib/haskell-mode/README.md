@@ -1,13 +1,13 @@
 <img src="https://rawgithub.com/haskell/haskell-mode/master/images/haskell-mode.svg" width="35" height="35" /> Haskell Mode for Emacs
 ======================
 
-This is an Emacs mode for editing, debugging and developing Haskell programs.
+This is an Emacs mode for editing, debugging and developing Haskell programs. [Home page](http://haskell.github.io/haskell-mode/).
 
 [![Coverage Status](https://coveralls.io/repos/haskell/haskell-mode/badge.svg?branch=master&service=github)](https://coveralls.io/github/haskell/haskell-mode?branch=master)
 [![Build Status](https://travis-ci.org/haskell/haskell-mode.svg?branch=master)](https://travis-ci.org/haskell/haskell-mode)
+[![Build status](https://ci.appveyor.com/api/projects/status/g0t3s9bwal8g3041/branch/master?svg=true)](https://ci.appveyor.com/project/gracjan/haskell-mode/branch/master)
 [![Melpa Status](http://melpa.org/packages/haskell-mode-badge.svg)](http://melpa.org/#/haskell-mode)
 [![Melpa Stable Status](http://stable.melpa.org/packages/haskell-mode-badge.svg)](http://stable.melpa.org/#/haskell-mode)
-[![Latest Docs](http://img.shields.io/badge/docs-latest-fc1e5e.svg)](http://haskell.github.io/haskell-mode/manual/latest/)
 [![License GPL3](https://img.shields.io/badge/license-GPL3-blue.svg)](https://github.com/haskell/haskell-mode/blob/master/COPYING)
 [![Twitter Follow](https://img.shields.io/twitter/follow/HaskellMode.svg?style=social)](https://twitter.com/HaskellMode)
 
@@ -20,6 +20,8 @@ This is an Emacs mode for editing, debugging and developing Haskell programs.
 
 > This sounds wonderful. Does anything similar exist for Vim?
 > -- [earldouglas, 2015-07-02](https://www.reddit.com/r/haskell/comments/3bsa0f/month_in_haskell_mode_june_2015/cspdbb6)
+
+Users manual: [latest version](http://haskell.github.io/haskell-mode/manual/latest/), older versions: [13.12](http://haskell.github.io/haskell-mode/manual/13.12/), [13.14](http://haskell.github.io/haskell-mode/manual/13.14/), [13.16](http://haskell.github.io/haskell-mode/manual/13.16/), [13.18](http://haskell.github.io/haskell-mode/manual/13.18/), [13.20](http://haskell.github.io/haskell-mode/manual/13.20/).
 
 
 ## Quick Installation
@@ -37,6 +39,7 @@ Make sure you have this in your [init file](http://www.gnu.org/software/emacs/ma
    (quote
     (("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa-stable" . "http://stable.melpa.org/packages/")))))
+(package-initialize)
 ```
 
 Then run emacs, and evaluate:
@@ -57,7 +60,7 @@ going!
 ## Advanced configuration
 
 For setup instructions, please consult the integrated `haskell-mode`
-[Info](https://www.gnu.org/software/texinfo/manual/info/info.html)
+[Info](https://www.gnu.org/software/texinfo/manual/texinfo/texinfo.html)
 manual which can be accessed after installation via `M-x
 info-display-manual [RET] haskell-mode`.  Alternatively, you can also
 direct your browser to the
@@ -67,7 +70,7 @@ for setup and user guide.
 
 ## Installation - more information
 
-`haskell-mode` supports GNU Emacs version 24 or later.
+`haskell-mode` supports GNU Emacs version 24.3 or later.
 
 `haskell-mode` is available from [melpa-stable](http://stable.melpa.org) (releases) and [melpa](http://melpa.org)
 (git snapshots).
@@ -102,6 +105,22 @@ make EMACS=/path/to/your/emacs
 (require 'haskell-mode-autoloads)
 (add-to-list 'Info-default-directory-list "~/lib/emacs/haskell-mode/")
 ```
+
+### Installation from git repository on macOS
+
+There are a couple of things to note if you want to install directly from
+git on macOS systems, as of version 10.13 High Sierra: 
+
+- The version of makeinfo that is installed by
+  default in /usr/bin is quite old and will cause the above make 
+  command to exit with an error. Installing the texinfo package using
+  [Homebrew](https://brew.sh) will fix this. Be sure to follow the post-install instructions
+  to add its bin directory to your shell's PATH variable.
+
+- If you are running an Emacs distribution packaged as a macOS application. such as
+  the one available at https://emacsformacosx.com/, you'll need to add its executable
+  to your PATH before the system's default Emacs version. That project's
+  [Tips and Tricks](https://emacsformacosx.com/tips) page has detailed instructions.
 
 ## Contributing
 

@@ -47,8 +47,8 @@ Either in your project's `project.clj` or in the `:user`
 profile found at `~/.lein/profiles.clj`:
 
 ```clojure
-:plugins [[refactor-nrepl "2.2.0"]
-          [cider/cider-nrepl "0.11.0"]]
+:plugins [[refactor-nrepl "2.3.1"]
+          [cider/cider-nrepl "0.14.0"]]
 ```
 
 Check out the much longer
@@ -86,8 +86,7 @@ All functions in `clj-refactor` have a two-letter mnemonic
 shortcut. E.g. `rs` for `cljr-rename-symbol`.  Given the prefix choice
 in the example setup you'd call this function by hitting `C-c C-m rs`
 
-See the wiki for a complete [list of available refactorings]
-(https://github.com/clojure-emacs/clj-refactor.el/wiki),
+See the wiki for a complete [list of available refactorings](https://github.com/clojure-emacs/clj-refactor.el/wiki),
 demonstrations and customization points.
 
 If you're having trouble remembering the mnemonic shortcuts, check out
@@ -128,8 +127,8 @@ Thanks to [everyone](https://github.com/clojure-emacs/clj-refactor.el/graphs/con
 
 ## License
 
-Copyright © 2012-2016 Magnar Sveen
-Copyright © 2014-2016 Magnar Sveen, Lars Andersen, Benedek Fazekas
+Copyright © 2012-2017 Magnar Sveen
+Copyright © 2014-2017 Magnar Sveen, Lars Andersen, Benedek Fazekas
 
 Author: Magnar Sveen <magnars@gmail.com>
         Lars Andersen <expez@expez.com>

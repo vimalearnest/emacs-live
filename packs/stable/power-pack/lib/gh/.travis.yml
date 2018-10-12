@@ -1,26 +1,19 @@
-language: python
-python:
-  - "2.7"
+language: emacs-lisp
+sudo: false
 env:
-  matrix:
-    - EMACS=emacs
-    - EMACS=emacs24
-    - EMACS=emacs-snapshot
+  - EVM_EMACS=emacs-24.3-travis
+  - EVM_EMACS=emacs-24.4-travis
+  - EVM_EMACS=emacs-24.5-travis
+  - EVM_EMACS=emacs-25.1-travis
+  - EVM_EMACS=emacs-25.2-travis
+  - EVM_EMACS=emacs-25.3-travis
 before_install:
-  - if [ "$EMACS" = "emacs24" ]; then
-        sudo add-apt-repository -y ppa:cassou/emacs &&
-        sudo apt-get update -qq &&
-        sudo apt-get install -qq emacs24 emacs24-el;
-    fi
-  - if [ "$EMACS" = 'emacs-snapshot' ]; then
-      sudo add-apt-repository -y ppa:cassou/emacs &&
-      sudo apt-get update -qq &&
-      sudo apt-get install -qq
-          emacs-snapshot-el emacs-snapshot;
-    fi
-  - pip install --use-mirrors virtualenv-emacs
-  - virtualenv_install_emacs --with-emacs=`which "$EMACS"` --marmalade
-  - elpa-get eieio pcache logito mocker
-  - emacs --version
+  - curl -fsSkL https://gist.github.com/rejeep/ebcd57c3af83b049833b/raw > travis.sh && source ./travis.sh
+  - evm install "$EVM_EMACS" --use --skip
 script:
-  make test
+  make travis-ci
+notifications:
+  slack:
+    secure: oaLsPHL71KyVTntePsXB2AqIKfV+eXRqVwWVf/oMSefa9p7/K+8vacBu2VE/vh+tdW+x4kPHNDHHTCVtgzY3+kRAxXfZB4JrhQkV8WAw7Eei+5VLszfNRtqf9deV46GnBEjGDlPZ6E+KNEu/F8CSrZm198Z4t7jYwfmhS0Epj1I=
+after_success:
+  - coveralls

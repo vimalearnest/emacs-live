@@ -66,7 +66,7 @@
 (defmethod logito-log ((api gh-api) level tag string &rest objects)
   (apply 'logito-log (oref api :log) level tag string objects))
 
-(defmethod constructor :static ((api gh-api) &rest args)
+(defmethod initialize-instance ((api gh-api) &rest args)
   (call-next-method))
 
 (defmethod gh-api-set-default-auth ((api gh-api) auth)
@@ -80,10 +80,12 @@
     (unless (or (null cache)
                 (and (eieio-object-p cache)
                      (object-of-class-p cache 'gh-cache)))
-      (oset api :cache (funcall (oref api cache-cls)
-                                (format "gh/%s/%s"
-                                        classname
-                                        (gh-api-get-username api)))))))
+      (oset api :cache (make-instance
+                        (oref api cache-cls)
+                        :object-name
+                        (format "gh/%s/%s"
+                                classname
+                                (gh-api-get-username api)))))))
 
 (defmethod gh-api-expand-resource ((api gh-api)
                                    resource)
@@ -107,19 +109,20 @@
                  (const :tag "OAuth" gh-oauth-authenticator))
   :group 'gh-api)
 
-(defmethod constructor :static ((api gh-api-v3) &rest args)
-  (let ((obj (call-next-method))
-        (gh-profile-current-profile (gh-profile-current-profile)))
-    (oset obj :profile (gh-profile-current-profile))
-    (oset obj :base (gh-profile-url))
-    (gh-api-set-default-auth obj
-                             (or (oref obj :auth)
-                                 (funcall gh-api-v3-authenticator "auth")))
-    obj))
+(defmethod initialize-instance ((api gh-api-v3) &rest args)
+  (call-next-method)
+  (let ((gh-profile-current-profile (gh-profile-current-profile)))
+    (oset api :profile (gh-profile-current-profile))
+    (oset api :base (gh-profile-url))
+    (gh-api-set-default-auth api
+                             (or (oref api :auth)
+                                 (funcall gh-api-v3-authenticator "auth")))))
 
+;;;###autoload
 (defclass gh-api-request (gh-url-request)
   ((default-response-cls :allocation :class :initform gh-api-response)))
 
+;;;###autoload
 (defclass gh-api-response (gh-url-response)
   ())
 
@@ -130,15 +133,17 @@
       (json-read-from-string repr))))
 
 (defun gh-api-json-encode (json)
-  (json-encode-list json))
+  (encode-coding-string (json-encode-list json) 'utf-8))
 
 (defmethod gh-url-response-set-data ((resp gh-api-response) data)
   (call-next-method resp (gh-api-json-decode data)))
 
+;;;###autoload
 (defclass gh-api-paged-request (gh-api-request)
   ((default-response-cls :allocation :class :initform gh-api-paged-response)
    (page-limit :initarg :page-limit :initform -1)))
 
+;;;###autoload
 (defclass gh-api-paged-response (gh-api-response)
   ())
 
@@ -217,7 +222,7 @@
                                :page-limit page-limit)))))
     (cond ((and has-value ;; got value from cache
                 (not is-outdated))
-           (gh-api-response "cached" :data-received t :data value))
+           (make-instance 'gh-api-response :data-received t :data value))
           (cache-key ;; no value, but cache exists and method is safe
            (let ((resp (make-instance (oref req default-response-cls)
                                       :transform transformer)))
@@ -236,6 +241,7 @@
                                     (oref req default-response-cls)
                                     :transform transformer))))))
 
+;;;###autoload
 (defclass gh-api-callback (gh-url-callback)
   ((cache :initarg :cache)
    (key :initarg :key)

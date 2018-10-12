@@ -33,6 +33,7 @@ specific `clojure-mode` release.**
   - [Threading macros](#threading-macros-related-features)
   - [Cycling things](#cycling-things)
   - [Convert collection](#convert-collection)
+  - [Let expression](#let-expression)
 - [Related packages](#related-packages)
 - [REPL Interaction](#repl-interaction)
   - [Basic REPL](#basic-repl)
@@ -71,7 +72,6 @@ The `clojure-mode` package actually bundles together several major modes:
 * `clojure-mode` is a major mode for editing Clojure code
 * `clojurescript-mode` is a major mode for editing ClojureScript code
 * `clojurec-mode` is a major mode for editing `.cljc` source files
-* `clojurex-mode` is a major mode for editing `.cljx` source files
 
 All the major modes derive from `clojure-mode` and provide more or less the same
 functionality.  Differences can be found mostly in the font-locking -
@@ -90,6 +90,8 @@ well.
 
 ## Configuration
 
+In the spirit of Emacs, pretty much everything you can think of in `clojure-mode` is configurable.
+
 To see a list of available configuration options do `M-x customize-group RET clojure`.
 
 ### Indentation options
@@ -97,6 +99,13 @@ To see a list of available configuration options do `M-x customize-group RET clo
 The default indentation rules in `clojure-mode` are derived from the
 [community Clojure Style Guide](https://github.com/bbatsov/clojure-style-guide).
 Please, refer to the guide for the general Clojure indentation rules.
+
+#### Indentation of docstrings
+
+By default multi-line docstrings are indented with 2 spaces, as this is a
+somewhat common standard in the Clojure community. You can however adjust this
+by modifying `clojure-docstring-fill-prefix-width`. Set it to 0 if you don't
+want multi-line docstrings to be indented at all (which is pretty common in most lisps).
 
 #### Indentation of function forms
 
@@ -264,15 +273,48 @@ Unwind and remove the threading macro. See demonstration on the
 
 * Cycle privacy
 
-Cycle privacy of `def`s or `defn`s. Use metadata explicitly with setting `clojure-use-metadata-for-privacy` to `t` for `defn`s too. See demonstration on the [clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-cycle-privacy).
+Cycle privacy of `def`s or `defn`s. Use metadata explicitly with setting
+`clojure-use-metadata-for-privacy` to `t` for `defn`s too. See demonstration
+on the [clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-cycle-privacy).
 
 * Cycle if/if-not
 
-Find the closest if or if-not up the syntax tree and toggle it. Also transpose the "else" and "then" branches, keeping the semantics the same as before. See demonstration on the [clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-cycle-if).
+Find the closest if or if-not up the syntax tree and toggle it.
+Also transpose the "else" and "then" branches, keeping the semantics
+the same as before. See demonstration on the [clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-cycle-if).
 
 ### Convert collection
 
 Convert any given collection at point to list, quoted list, map, vector or set.
+
+### Let expression
+
+* Introduce let
+
+Introduce a new let form. Put the current form into its binding form with
+a name provided by the user as a bound name. If called with a numeric prefix
+put the let form Nth level up in the form hierarchy. See demonstration on the
+[clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-introduce-let).
+
+* Move to let
+
+Move the current form to the closest let's binding form. Replace
+all occurrences of the form in the body of the let. See demonstration on the
+[clj-refactor.el wiki](https://github.com/clojure-emacs/clj-refactor.el/wiki/cljr-move-to-let).
+
+* Forward slurp form into let
+
+Slurp the next form after the let into the let. Replace all occurrences
+of the bound forms in the form added to the let form. If called with
+a prefix argument slurp the next n forms.
+
+* Backward slurp form into let
+
+Slurp the form before the let into the let. Replace all occurrences
+of the bound forms in the form added to the let form. If called with
+a prefix argument slurp the previous n forms.
+
+`paredit-convolute-sexp` is advised to replace occurrences of bound forms with their bound names when convolute is used on a let form.
 
 ## Related packages
 
@@ -380,7 +422,7 @@ An extensive changelog is available [here](CHANGELOG.md).
 
 ## License
 
-Copyright © 2007-2016 Jeffrey Chu, Lennart Staflin, Phil Hagelberg, Bozhidar
+Copyright © 2007-2018 Jeffrey Chu, Lennart Staflin, Phil Hagelberg, Bozhidar
 Batsov, Artur Malabarba and [contributors][].
 
 Distributed under the GNU General Public License; type <kbd>C-h C-c</kbd> to view it.

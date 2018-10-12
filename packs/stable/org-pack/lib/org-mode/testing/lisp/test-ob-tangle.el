@@ -20,7 +20,7 @@
 
 ;;; Comments:
 
-;; Template test file for Org-mode tests
+;; Template test file for Org tests
 
 
 ;;; Code:
@@ -63,11 +63,12 @@
            "df|sed '1d'|awk '{print $5 \" \" $6}'|sort -n |tail -1|awk '{print $2}'"))
       (org-narrow-to-subtree)
       (org-babel-tangle)
-      (with-temp-buffer
-        (insert-file-contents "babel.sh")
-        (goto-char (point-min))
-        (should (re-search-forward (regexp-quote tangled) nil t)))
-      (delete-file "babel.sh"))))
+      (should (unwind-protect
+		  (with-temp-buffer
+		    (insert-file-contents "babel.sh")
+		    (goto-char (point-min))
+		    (re-search-forward (regexp-quote tangled) nil t))
+		(when (file-exists-p "babel.sh") (delete-file "babel.sh")))))))
 
 (ert-deftest ob-tangle/expand-headers-as-noweb-references ()
   "Test that references to headers are expanded during noweb expansion."
@@ -81,9 +82,9 @@
   "Test commenting of links at left margin."
   (should
    (string-match
-    (regexp-quote "# [[http://orgmode.org][Org mode]]")
+    (regexp-quote "# [[https://orgmode.org][Org mode]]")
     (org-test-with-temp-text-in-file
-        "[[http://orgmode.org][Org mode]]
+        "[[https://orgmode.org][Org mode]]
 #+header: :comments org :tangle \"test-ob-tangle.sh\"
 #+begin_src sh
 echo 1
@@ -195,6 +196,31 @@ another block
                     (file-name-nondirectory file))
           (org-babel-tangle-jump-to-org)
           (buffer-string)))))))
+
+(ert-deftest ob-tangle/nested-block ()
+  "Test tangling of org file with nested block."
+  (should
+   (string=
+    "#+begin_src org
+,#+begin_src emacs-lisp
+1
+,#+end_src
+#+end_src
+"
+    (org-test-with-temp-text-in-file
+        "#+header: :tangle \"test-ob-tangle.org\"
+#+begin_src org
+,#+begin_src org
+,,#+begin_src emacs-lisp
+1
+,,#+end_src
+,#+end_src
+#+end_src"
+      (unwind-protect
+          (progn (org-babel-tangle)
+                 (with-temp-buffer (insert-file-contents "test-ob-tangle.org")
+                                   (buffer-string)))
+        (delete-file "test-ob-tangle.org"))))))
 
 (provide 'test-ob-tangle)
 

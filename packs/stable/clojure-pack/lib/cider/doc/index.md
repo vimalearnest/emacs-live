@@ -15,8 +15,8 @@ so on.
 CIDER is the successor to the now deprecated combination of using [SLIME][] +
 [swank-clojure][] for Clojure development.
 
-If you like the project, please consider
-[supporting its ongoing development](about/contributing.md#donations).
+**Please consider
+[supporting financially its ongoing development](about/contributing.md#funding).**
 
 ## Overview
 
@@ -74,10 +74,11 @@ CIDER packs plenty of features. Here are some of them (in no particular order):
 * [Pretty-printing of results](configuration.md#pretty-printing)
 * [Classpath browser](miscellaneous_features.md#classpath-browser)
 * [Namespace browser](miscellaneous_features.md#namespace-browser)
+* [REPL history browser](miscellaneous_features.md#repl-history-browser)
 * nREPL session management
 * [Scratchpad](miscellaneous_features.md#using-a-scratchpad)
 * [Minibuffer code evaluation](miscellaneous_features.md#evaluating-clojure-code-in-the-minibuffer)
-* Integration with [company-mode][] and [auto-complete-mode][]
+* Integration with [company-mode][]
 * [Support for working with multiple simultaneous nREPL connections](managing_connections.md)
 
 ![CIDER Screenshot](images/cider-overview.png)
@@ -88,10 +89,9 @@ CIDER packs plenty of features. Here are some of them (in no particular order):
 [Sly]: https://github.com/capitaomorte/sly
 [Geiser]: https://github.com/jaor/geiser
 [company-mode]: http://company-mode.github.io/
-[auto-complete-mode]: https://github.com/clojure-emacs/ac-cider
 [leiningen]: http://leiningen.org/
 [boot]: http://boot-clj.com/
-[piggieback]: https://github.com/cemerick/piggieback
+[piggieback]: https://github.com/clojure-emacs/piggieback
 [vim-fireplace]: https://github.com/tpope/vim-fireplace
 [CCW]: https://github.com/laurentpetit/ccw
 [cider-nrepl]: https://github.com/clojure-emacs/cider-nrepl

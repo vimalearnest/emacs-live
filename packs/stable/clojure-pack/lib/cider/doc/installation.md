@@ -1,6 +1,6 @@
 The canonical way to install CIDER is via `package.el` (Emacs's built-in package
-manager), but plenty of other options exist (see the
-[wiki](https://github.com/clojure-emacs/cider/wiki/Installation)).
+manager), but it can be installed manually or via alternative package managers such
+as `el-get`.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ release). If you're new to Emacs you might want to go through
 [the guided tour of Emacs](https://www.gnu.org/software/emacs/tour/index.html)
 and the built-in tutorial (just press <kbd>C-h t</kbd>).
 
-CIDER officially supports Emacs 24.3+, Java 7+ and Clojure(Script) 1.7+.
+CIDER officially supports Emacs 24.4+, Java 7+ and Clojure(Script) 1.7+.
 CIDER 0.10 was the final release which supported Java 6 and Clojure 1.5 and 1.6.
 
 You'll also need a recent version of your favorite build tool (Leiningen, Boot
@@ -60,11 +60,67 @@ Stable by adding this to your Emacs initialization:
   [GNU ELPA repository](https://elpa.gnu.org/). It's the only package repository
   enabled by default in Emacs and you should not disable it!**
 
+## Installation via use-package
+
+`use-package` can be used to install CIDER via the `package.el`'s repositories
+[MELPA Stable](http://stable.melpa.org) and [MELPA](http://melpa.org).
+
+If you wanted to install the version of CIDER which is what is to be found in
+the `master` branch, declare the following in your Emacs initialization file
+(`.emacs` or `init.el`):
+
+```el
+(use-package cider
+  :ensure t)
+```
+
+However, if you wanted to be a bit more conservative and only use the stable
+releases of CIDER, you'd declare the following:
+
+```el
+(use-package cider
+  :ensure t
+  :pin melpa-stable)
+```
+
+After placing one of the above s-expressions, evaluate it, for it to take effect
+by entering: <kbd>C-x C-e</kbd>.
+
+For further configuration options with `use-package`, consult the
+official [use-package repository](https://github.com/jwiegley/use-package).
+
+
+## Installation via el-get
+
+CIDER is also available for installation from
+the [el-get](https://github.com/dimitri/el-get) package manager.
+
+Provided you've already installed `el-get` you can install CIDER with the
+following command:
+
+<kbd>M-x el-get-install [RET] cider [RET]</kbd>
+
+## Manual installation
+
+Alternatively you can simply load CIDER in your Emacs straight from its source
+repo. Assuming you've already obtained the code you should add something like
+this to your Emacs configuration:
+
+```el
+;; load CIDER from its source code
+(add-to-list 'load-path "~/projects/cider")
+(require 'cider)
+```
+
+Just keep in mind that you'll have to manually install all the packages CIDER
+depends on in advance.
+
 ## CIDER's nREPL middleware
 
-Much of CIDER's functionality depends on the presence of CIDER's own
-[nREPL middleware](https://github.com/clojure-emacs/cider-nrepl). Starting with version 0.11, When `cider-jack-in` (<kbd>C-c M-j</kbd>) is
-used, CIDER takes care of injecting it and its other dependencies.
+Much of CIDER's functionality depends on the presence of CIDER's
+own [nREPL middleware](https://github.com/clojure-emacs/cider-nrepl). Starting
+with version 0.11, When `cider-jack-in` (<kbd>C-c M-j</kbd>) is used, CIDER
+takes care of injecting it and its other dependencies.
 
 **`profiles.clj` or `profile.boot` don't need to be modified anymore for the above use case!**
 
@@ -95,7 +151,7 @@ Use the convenient plugin for defaults, either in your project's
 A minimal `profiles.clj` for CIDER would be:
 
 ```clojure
-{:repl {:plugins [[cider/cider-nrepl "0.14.0"]]}}
+{:repl {:plugins [[cider/cider-nrepl "0.16.0"]]}}
 ```
 
 **Be careful not to place this in the `:user` profile, as this way CIDER's
@@ -111,7 +167,7 @@ all of their projects using a `~/.boot/profile.boot` file like so:
 (require 'boot.repl)
 
 (swap! boot.repl/*default-dependencies*
-       concat '[[cider/cider-nrepl "0.14.0"]])
+       concat '[[cider/cider-nrepl "0.16.0"]])
 
 (swap! boot.repl/*default-middleware*
        conj 'cider.nrepl/cider-middleware)
@@ -138,6 +194,6 @@ It goes without saying that your project should depend on `cider-nrepl`.
 
 ***
 
-`x.y.z` should match the version of CIDER you're currently using (say `0.14.0`).
+`x.y.z` should match the version of CIDER you're currently using (say `0.16.0`).
 For snapshot releases of CIDER you should use the snapshot of the plugin as well
-(say `0.14.0-SNAPSHOT`).
+(say `0.16.0-SNAPSHOT`).

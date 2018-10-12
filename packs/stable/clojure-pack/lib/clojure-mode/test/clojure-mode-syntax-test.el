@@ -1,6 +1,6 @@
 ;;; clojure-mode-syntax-test.el --- Clojure Mode: syntax related tests  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2016 Bozhidar Batsov <bozhidar@batsov.com>
+;; Copyright (C) 2015-2018 Bozhidar Batsov <bozhidar@batsov.com>
 
 ;; This file is not part of GNU Emacs.
 
@@ -68,6 +68,7 @@
       (insert (car form))
       (equal (symbol-name (symbol-at-point)) (cdr form)))))
 
+
 (ert-deftest clojure-syntax-skip-prefixes ()
   (dolist (form '("#?@aaa" "#?aaa" "#aaa" "'aaa"))
     (with-temp-buffer
@@ -76,5 +77,75 @@
       (backward-word)
       (backward-prefix-chars)
       (should (bobp)))))
+
+
+(ert-deftest clojure-allowed-collection-tags ()
+  (dolist (tag '("#::ns" "#:ns" "#ns" "#:f.q/ns" "#f.q/ns" "#::"))
+    (with-temp-buffer
+      (clojure-mode)
+      (insert tag)
+      (should-not (clojure-no-space-after-tag nil ?{))))
+  (dolist (tag '("#$:" "#/f" "#:/f" "#::f.q/ns" "::ns" "::" "#f:ns"))
+    (with-temp-buffer
+      (clojure-mode)
+      (insert tag)
+      (should (clojure-no-space-after-tag nil ?{)))))
+
+
+(def-refactor-test test-paragraph-fill-within-comments
+    "
+;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+;; ut labore et dolore magna aliqua."
+    "
+;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+;; tempor incididunt ut labore et dolore magna aliqua."
+  (goto-char (point-min))
+  (let ((fill-column 80))
+    (fill-paragraph)))
+
+(def-refactor-test test-paragraph-fill-within-inner-comments
+    "
+(let [a 1]
+  ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+  ;; ut labore et dolore
+  ;; magna aliqua.
+  )"
+    "
+(let [a 1]
+  ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+  ;; tempor incididunt ut labore et dolore magna aliqua.
+  )"
+  (goto-char (point-min))
+  (forward-line 2)
+  (let ((fill-column 80))
+    (fill-paragraph)))
+
+(when (fboundp 'font-lock-ensure)
+  (def-refactor-test test-paragraph-fill-not-altering-surrounding-code
+      "(def my-example-variable
+  \"It has a very long docstring. So long, in fact, that it wraps onto multiple lines! This is to demonstrate what happens when the docstring wraps over three lines.\"
+  nil)"
+      "(def my-example-variable
+  \"It has a very long docstring. So long, in fact, that it wraps onto multiple
+  lines! This is to demonstrate what happens when the docstring wraps over three
+  lines.\"
+  nil)"
+    (font-lock-ensure)
+    (goto-char 40)
+    (let ((clojure-docstring-fill-column 80)
+          (fill-column 80))
+      (fill-paragraph)))
+
+  (ert-deftest test-clojure-in-docstring-p ()
+    (with-temp-buffer
+      (insert  "(def my-example-variable
+  \"Doc here and `doc-here`\"
+  nil)")
+      (clojure-mode)
+      (font-lock-ensure)
+      (goto-char 32)
+      (should (clojure-in-docstring-p))
+      (goto-char 46)
+      (should (clojure-in-docstring-p)))))
 
 (provide 'clojure-mode-syntax-test)

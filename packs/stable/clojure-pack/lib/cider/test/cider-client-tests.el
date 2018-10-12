@@ -1,6 +1,6 @@
 ;;; cider-client-tests.el
 
-;; Copyright © 2012-2016 Tim King, Bozhidar Batsov
+;; Copyright © 2012-2018 Tim King, Bozhidar Batsov
 
 ;; Author: Tim King <kingtim@gmail.com>
 ;;         Bozhidar Batsov <bozhidar@batsov.com>
@@ -31,30 +31,9 @@
 (require 'buttercup)
 (require 'cider)
 (require 'cider-client)
+(require 'cider-connection-test-utils)
 
 ;;; cider-client tests
-
-(defmacro with-connection-buffer (type symbol &rest body)
-  "Run BODY in a temp buffer, with the given repl TYPE.
-SYMBOL is locally let-bound to the current buffer."
-  (declare (indent 2)
-           (debug (sexp sexp &rest form)))
-  `(with-temp-buffer
-     (setq major-mode 'cider-repl-mode)
-     (setq cider-repl-type ,type)
-     ;; `with-current-buffer' doesn't bump the buffer up the list.
-     (switch-to-buffer (current-buffer))
-     (rename-buffer (format "*cider-repl %s-%s*" ,type (random 10000)) t)
-     (let ((cider-connections (cons (current-buffer) cider-connections))
-           (,symbol (current-buffer)))
-       ,@body)))
-
-(defmacro cider-test-with-buffers (buffer-names &rest body)
-  (let ((create (lambda (b) (list b `(generate-new-buffer " *temp*")))))
-    `(let (,@(mapcar create buffer-names))
-       (unwind-protect
-           ,@body
-         (mapc 'kill-buffer (list ,@buffer-names))))))
 
 (describe "cider-current-connection"
 
@@ -87,6 +66,40 @@ SYMBOL is locally let-bound to the current buffer."
               (with-temp-buffer
                 (setq major-mode 'clojurescript-mode)
                 (expect (cider-current-connection) :to-equal b2)))))))
+
+    (it "always returns the most recently used connection"
+      (with-connection-buffer "clj" bb1
+        (with-connection-buffer "cljs" bb2
+          (with-connection-buffer "clj" b1
+            (with-connection-buffer "cljs" b2
+
+              (switch-to-buffer bb2)
+              (switch-to-buffer bb1)
+              (expect (cider-current-connection) :to-equal bb1)
+
+              ;; follows type arguments
+              (expect (cider-current-connection "clj") :to-equal bb1)
+              (expect (cider-current-connection "cljs") :to-equal bb2)
+
+              ;; follows file type
+              (with-temp-buffer
+                (setq major-mode 'clojure-mode)
+                (expect (cider-current-connection) :to-equal bb1))
+
+              (with-temp-buffer
+                (setq major-mode 'clojurescript-mode)
+                (expect (cider-current-connection) :to-equal bb2)))))))
+
+    (describe "when current buffer is a 'multi' buffer"
+      (describe "when there is only one connection available"
+       (it "returns the only connection"
+         (with-connection-buffer "clj" b
+           (with-temp-buffer
+             (clojure-mode)
+             (expect (cider-current-connection "clj") :to-equal b))
+           (with-temp-buffer
+             (clojurec-mode)
+             (expect (cider-current-connection "clj") :to-equal b))))))
 
     (describe "when type argument is given"
       (describe "when connection of that type exists"
@@ -219,6 +232,46 @@ SYMBOL is locally let-bound to the current buffer."
             :to-equal "stub")
     (expect (cider-var-info "") :to-equal nil)))
 
+(describe "cider-toggle-buffer-connection"
+  (spy-on 'message :and-return-value nil)
+
+  (describe "when there are multiple connections"
+    (it "toggles between multiple buffers"
+      (with-connection-buffer "clj" clj-buffer
+        (with-connection-buffer "cljs" cljs-buffer
+          (with-temp-buffer
+            (setq major-mode 'clojurec-mode)
+            (expect (cider-connections)
+                    :to-equal (list cljs-buffer clj-buffer))
+
+            (cider-toggle-buffer-connection)
+            (expect (cider-connections)
+                    :to-equal (list clj-buffer))
+
+            (cider-toggle-buffer-connection)
+            (expect (cider-connections)
+                    :to-equal (list cljs-buffer))
+
+            (cider-toggle-buffer-connection t)
+            (expect (cider-connections)
+                    :to-equal (list cljs-buffer clj-buffer)))))))
+
+  (describe "when there is a single connection"
+    (it "reports a user error"
+      (with-connection-buffer "clj" clj-buffer
+        (with-temp-buffer
+          (setq major-mode 'clojurec-mode)
+          (expect (cider-connections)
+                  :to-equal (list clj-buffer))
+
+          (expect (cider-toggle-buffer-connection) :to-throw 'user-error)
+
+          (expect (cider-connections)
+                  :to-equal (list clj-buffer))
+
+          (expect (local-variable-p 'cider-connections)
+                  :to-be nil))))))
+
 (describe "cider-make-connection-default"
   :var (connections)
 
@@ -288,6 +341,7 @@ SYMBOL is locally let-bound to the current buffer."
       (with-temp-buffer
         (setq-local nrepl-endpoint '("localhost" 4005))
         (setq-local nrepl-project-dir "proj")
+        (setq-local cider-repl-type "clj")
         (expect (cider--connection-info (current-buffer))
                 :to-equal "CLJ proj@localhost:4005 (Java 1.7, Clojure 1.7.0, nREPL 0.2.1)"))))
 
@@ -295,6 +349,7 @@ SYMBOL is locally let-bound to the current buffer."
     (it "returns information about the connection buffer without project name"
       (with-temp-buffer
         (setq-local nrepl-endpoint '("localhost" 4005))
+        (setq-local cider-repl-type "clj")
         (expect (cider--connection-info (current-buffer))
                 :to-equal "CLJ <no project>@localhost:4005 (Java 1.7, Clojure 1.7.0, nREPL 0.2.1)")))))
 
@@ -333,9 +388,9 @@ SYMBOL is locally let-bound to the current buffer."
     (setq cider-repl-type "cljs")
     (expect (cider-connection-type-for-buffer) :to-equal "cljs"))
 
-  (it "returns clj as its default value"
+  (it "returns nil as its default value"
     (setq cider-repl-type nil)
-    (expect (cider-connection-type-for-buffer) :to-equal "clj")))
+    (expect (cider-connection-type-for-buffer) :to-equal nil)))
 
 
 (describe "cider-nrepl-send-unhandled-request"
@@ -372,12 +427,16 @@ SYMBOL is locally let-bound to the current buffer."
 
 
 (describe "cider-extract-designation-from-current-repl-buffer"
+
   (describe "when the buffers have a designation"
     (it "returns that designation string"
       (with-temp-buffer
-        (let* ((cider-connections (list (current-buffer))))
+        (let ((cider-connections (list (current-buffer)))
+              (nrepl-repl-buffer-name-template "*cider-repl%s*"))
           (rename-buffer "*cider-repl bob*")
+          (switch-to-buffer (current-buffer))
           (with-temp-buffer
+            (switch-to-buffer (current-buffer))
             (expect (cider-extract-designation-from-current-repl-buffer)
                     :to-equal "bob")
             (rename-buffer "*cider-repl apa*")
@@ -402,6 +461,7 @@ SYMBOL is locally let-bound to the current buffer."
                 (expect (cider-extract-designation-from-current-repl-buffer)
                         :to-equal "<no designation>")))))))))
 
+
 (describe "cider-project-name"
   (it "returns the project name extracted from the project dir"
     (expect (cider-project-name nil) :to-equal "-")
@@ -415,7 +475,7 @@ SYMBOL is locally let-bound to the current buffer."
     (expect (cider-ensure-connected) :to-equal nil))
   (it "raises a user-error in the absence of a connection"
     (spy-on 'cider-connected-p :and-return-value nil)
-    (expect (lambda () (cider-ensure-connected)) :to-throw 'user-error)))
+    (expect (cider-ensure-connected) :to-throw 'user-error)))
 
 (describe "cider-ensure-op-supported"
   (it "returns nil when the op is supported"
@@ -423,7 +483,7 @@ SYMBOL is locally let-bound to the current buffer."
     (expect (cider-ensure-op-supported "foo") :to-equal nil))
   (it "raises a user-error if the op is not supported"
     (spy-on 'cider-nrepl-op-supported-p :and-return-value nil)
-    (expect (lambda () (cider-ensure-op-supported "foo"))
+    (expect (cider-ensure-op-supported "foo")
             :to-throw 'user-error)))
 
 (describe "cider-expected-ns"

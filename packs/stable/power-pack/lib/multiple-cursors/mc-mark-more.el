@@ -1,6 +1,6 @@
 ;;; mc-mark-more.el
 
-;; Copyright (C) 2012 Magnar Sveen
+;; Copyright (C) 2012-2016 Magnar Sveen
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
 ;; Keywords: editing cursors
@@ -188,12 +188,22 @@ With zero ARG, skip the last one and mark next."
 
 ;;;###autoload
 (defun mc/mark-next-word-like-this (arg)
+  "Find and mark the next word of the buffer matching the currently active region
+The matching region must be a whole word to be a match
+If no region is active, mark the symbol at the point and find the next match
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark next."
   (interactive "p")
   (let ((mc/enclose-search-term 'words))
     (mc/mark-next-like-this arg)))
 
 ;;;###autoload
 (defun mc/mark-next-symbol-like-this (arg)
+  "Find and mark the next symbol of the buffer matching the currently active region
+The matching region must be a whole symbol to be a match
+If no region is active, mark the symbol at the point and find the next match
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark next."
   (interactive "p")
   (let ((mc/enclose-search-term 'symbols))
     (mc/mark-next-like-this arg)))
@@ -201,6 +211,7 @@ With zero ARG, skip the last one and mark next."
 ;;;###autoload
 (defun mc/mark-previous-like-this (arg)
   "Find and mark the previous part of the buffer matching the currently active region
+If no region is active add a cursor on the previous line
 With negative ARG, delete the last one instead.
 With zero ARG, skip the last one and mark next."
   (interactive "p")
@@ -215,13 +226,59 @@ With zero ARG, skip the last one and mark next."
   (mc/maybe-multiple-cursors-mode))
 
 ;;;###autoload
+(defun mc/mark-previous-like-this-word (arg)
+  "Find and mark the previous part of the buffer matching the currently active region
+If no region is active, mark the word at the point and find the previous match
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark previous."
+  (interactive "p")
+  (if (< arg 0)
+      (let ((cursor (mc/furthest-cursor-after-point)))
+	(if cursor
+	    (mc/remove-fake-cursor cursor)
+	  (error "No cursors to be unmarked")))
+    (if (region-active-p)
+        (mc/mark-more-like-this (= arg 0) 'backwards)
+      (mc--select-thing-at-point 'word)
+      (mc/mark-more-like-this (= arg 0) 'backwards)))
+  (mc/maybe-multiple-cursors-mode))
+
+(defun mc/mark-previous-like-this-symbol (arg)
+  "Find and mark the previous part of the buffer matching the currently active region
+If no region is active, mark the symbol at the point and find the previous match
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark previous."
+  (interactive "p")
+  (if (< arg 0)
+      (let ((cursor (mc/furthest-cursor-after-point)))
+	(if cursor
+	    (mc/remove-fake-cursor cursor)
+	  (error "No cursors to be unmarked")))
+    (if (region-active-p)
+        (mc/mark-more-like-this (= arg 0) 'backwards)
+      (mc--select-thing-at-point 'symbol)
+      (mc/mark-more-like-this (= arg 0) 'backwards)))
+  (mc/maybe-multiple-cursors-mode))
+
+
+;;;###autoload
 (defun mc/mark-previous-word-like-this (arg)
+  "Find and mark the previous part of the buffer matching the currently active region
+The matching region must be a whole word to be a match
+If no region is active add a cursor on the previous line
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark next."
   (interactive "p")
   (let ((mc/enclose-search-term 'words))
     (mc/mark-previous-like-this arg)))
 
 ;;;###autoload
 (defun mc/mark-previous-symbol-like-this (arg)
+  "Find and mark the previous part of the buffer matching the currently active region
+The matching region must be a whole symbol to be a match
+If no region is active add a cursor on the previous line
+With negative ARG, delete the last one instead.
+With zero ARG, skip the last one and mark next."
   (interactive "p")
   (let ((mc/enclose-search-term 'symbols))
     (mc/mark-previous-like-this arg)))
@@ -366,16 +423,13 @@ With zero ARG, skip the last one and mark next."
             (setq lastmatch (point))
             (when (= (point) (match-beginning 0))
               (forward-char)))
-          (when lastmatch (goto-char lastmatch)))
-        (when (> (mc/num-cursors) 0)
-          (goto-char (match-end 0)))
-        (let ((first (mc/furthest-cursor-before-point)))
-          (if (not first)
-              (error "Search failed for %S" search)
-            (mc/pop-state-from-overlay first)))
-        (if (> (mc/num-cursors) 1)
-            (multiple-cursors-mode 1)
-          (multiple-cursors-mode 0))))))
+          (unless lastmatch
+            (error "Search failed for %S" search)))
+          (goto-char (match-end 0))
+        (if (< (mc/num-cursors) 3)
+            (multiple-cursors-mode 0)
+          (mc/pop-state-from-overlay (mc/furthest-cursor-before-point))
+          (multiple-cursors-mode 1))))))
 
 (when (not (fboundp 'set-temporary-overlay-map))
   ;; Backport this function from newer emacs versions

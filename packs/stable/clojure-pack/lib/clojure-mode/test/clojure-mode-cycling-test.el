@@ -1,6 +1,6 @@
 ;;; clojure-mode-cycling-test.el --- Clojure Mode: cycling things tests  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016 Benedek Fazekas <benedek.fazekas@gmail.com>
+;; Copyright (C) 2016-2018 Benedek Fazekas <benedek.fazekas@gmail.com>
 
 ;; This file is not part of GNU Emacs.
 
@@ -112,6 +112,50 @@
   (beginning-of-buffer)
   (search-forward "BBB))")
   (clojure-cycle-if))
+
+(def-refactor-test test-cycle-when-inner-when
+  "(when this
+  (when that
+    (aaa)
+    (bbb))
+  (ccc))"
+  "(when this
+  (when-not that
+    (aaa)
+    (bbb))
+  (ccc))"
+  (beginning-of-buffer)
+  (search-forward "bbb)")
+  (clojure-cycle-when))
+
+(def-refactor-test test-cycle-when-outer-when
+  "(when-not this
+  (when that
+    (aaa)
+    (bbb))
+  (ccc))"
+  "(when this
+  (when that
+    (aaa)
+    (bbb))
+  (ccc))"
+  (beginning-of-buffer)
+  (search-forward "bbb))")
+  (clojure-cycle-when))
+
+(def-refactor-test test-cycle-not-add
+  "(ala bala portokala)"
+  "(not (ala bala portokala))"
+  (beginning-of-buffer)
+  (search-forward "bala")
+  (clojure-cycle-not))
+
+(def-refactor-test test-cycle-not-remove
+  "(not (ala bala portokala))"
+  "(ala bala portokala)"
+  (beginning-of-buffer)
+  (search-forward "bala")
+  (clojure-cycle-not))
 
 (provide 'clojure-mode-cycling-test)
 

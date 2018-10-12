@@ -2,8 +2,39 @@
 
 ## Next
 
+* Changed the default of `js2-strict-trailing-comma-warning` to nil.
+
+## 2018-03-01
+
+* Support single-line JSDocs.
+* New face `js2-object-property-access`.
+* Support for trailing comma in function arguments
+* JSDoc highlighting for `@yield`, `@yields`, `@abstract`, `@virtual` and `@typedef`.
+* Support for anonymous class exports.
+
+## 2017-07-21
+
+* Support for async arrow function without parentheses.
+* Support for `/*jslint` declarations.
+* User option `js2-getprop-has-side-effects`.
+* Support for trailing commas in function parameter lists.
+* Support for ES7 public class fields.
+* New user option `js2-ignored-warnings`.
+
+## 2017-01-16
+
+* `js2-include-*-externs` are now evaluated on demand.  As a result,
+  they can now be effectively used as file- or directory-local
+  variables.
+* Support for ES7 exponentiation operator.
+
+## 2016-06-23
+
+* New variable `js2-mode-assume-strict`, for use with ES6 modules.
+* Support for JSDoc @callback, @func and @method tags.
 * Object properties are highlighted using a different face:
   `js2-object-property`, which has no color by default.
+* Experimental support for object rest/spread ECMAScript proposal.
 * `js2-getter-setter-node` is renamed to `js2-method-node`, together with
   its related functions.  It already handles generator methods, and we
   added support for async methods (see below), so the old name would get
@@ -13,7 +44,7 @@
 * New mode: `js2-jsx-mode`, deriving from `js2-mode`.  Supports indentation of
   JSXElement expressions wrapped within parentheses or as function arguments.
   Indentation is customizable via `sgml-attribute-offset`.
-* Experimental support for ES7 stage 3 async/await.
+* Experimental support for async/await ECMAScript proposal.
 
 ## 20150909
 

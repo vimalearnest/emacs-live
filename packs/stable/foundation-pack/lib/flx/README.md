@@ -49,6 +49,11 @@ This version will always be up-to-date.
 user - `flx-ido` is already properly configured and ready for
 action.
 
+### Debian and Ubuntu
+
+Users of Debian 9 or Ubuntu 16.04 or later may simply `apt-get install
+elpa-flx`.
+
 ## Usage
 
 The sorting algorithm is a balance between word beginnings (abbreviation) and
@@ -113,9 +118,6 @@ kick in again.
 As a point of reference for a 2.3 GHz quad-core i7 processor, a value of
 `10000` still provides a reasonable completion experience.
 
-- see `flx-ido-big-demo` for example with 36k string (Emacs 24.3).
-
-
 
 ## Helm support
 
@@ -166,7 +168,7 @@ By default Emacs will initiate GC every 0.76 MB allocated (`gc-cons-threshold`
 == 800000).  If we increase this to 20 MB (`gc-cons-threshold` == 20000000)
 we get:
 
-````lisp
+```lisp
 (benchmark-run 1
   (setq gc-cons-threshold 20000000)
   (let ((cache (flx-make-filename-cache)))

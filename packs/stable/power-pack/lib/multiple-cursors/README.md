@@ -8,7 +8,7 @@ great success and much merriment.
 
 I highly recommend installing multiple-cursors through `package.el`.
 
-It's available on [melpa](http://melpa.milkbox.net/):
+It's available on [MELPA](http://melpa.org/) and [MELPA Stable](http://stable.melpa.org):
 
     M-x package-install multiple-cursors
 
@@ -43,6 +43,10 @@ To get out of multiple-cursors-mode, press `<return>` or `C-g`. The latter will
 first disable multiple regions before disabling multiple cursors. If you want to
 insert a newline in multiple-cursors-mode, use `C-j`.
 
+## Important note
+
+Multiple cursors does not do well when you invoke its commands with `M-x`. It needs to be bound to keys to work properly. Pull request to fix this is welcome.
+
 ## Video
 
 You can [watch an intro to multiple-cursors at Emacs Rocks](http://emacsrocks.com/e13.html).
@@ -57,6 +61,8 @@ You can [watch an intro to multiple-cursors at Emacs Rocks](http://emacsrocks.co
  - `mc/mark-next-word-like-this`: Like `mc/mark-next-like-this` but only for whole words.
  - `mc/mark-next-symbol-like-this`: Like `mc/mark-next-like-this` but only for whole symbols.
  - `mc/mark-previous-like-this`: Adds a cursor and region at the next part of the buffer backwards that matches the current region.
+ - `mc/mark-previous-like-this-word`: Adds a cursor and region at the next part of the buffer backwards that matches the current region, if  no region is selected it selects the word at the point.
+ - `mc/mark-previous-like-this-symbol`: Adds a cursor and region at the next part of the buffer backwards that matches the current region, if  no region is selected it selects the symbol at the point.
  - `mc/mark-previous-word-like-this`: Like `mc/mark-previous-like-this` but only for whole words.
  - `mc/mark-previous-symbol-like-this`: Like `mc/mark-previous-like-this` but only for whole symbols.
  - `mc/mark-more-like-this-extended`: Use arrow keys to quickly mark/skip next/previous occurances.
@@ -69,7 +75,6 @@ You can [watch an intro to multiple-cursors at Emacs Rocks](http://emacsrocks.co
  - `mc/unmark-previous-like-this`: Remove the cursor furthest up in the buffer.
  - `mc/skip-to-next-like-this`: Remove the cursor furthest down, marking the next occurance down.
  - `mc/skip-to-previous-like-this`: Remove the cursor furthest up, marking the next occurance up.
- - `mc/mark-next-like-this-extended`: Temporarily bind the arrow keys to mark/unmark/skip cursors.
 
 ### Mark many occurrences
 
@@ -99,6 +104,9 @@ You can [watch an intro to multiple-cursors at Emacs Rocks](http://emacsrocks.co
 - To get out of multiple-cursors-mode, press `<return>` or `C-g`. The latter will
   first disable multiple regions before disabling multiple cursors. If you want to
   insert a newline in multiple-cursors-mode, use `C-j`.
+
+- `(define-key mc/keymap (kbd "<return>") nil)` will make `<return>` insert a
+  newline; multiple-cursors-mode can still be disabled with `C-g`.
 
 - Sometimes you end up with cursors outside of your view. You can
   scroll the screen to center on each cursor with `C-v` and `M-v` or you can
@@ -157,6 +165,11 @@ the location with:
 
 NB! Make sure to do so before requiring multiple-cursors.
 
+It is possible to set multiple-cursors to "run-for-all" for every
+command except for those that are listed in `mc/cmds-to-run-once`. To
+enable this set `mc/always-run-for-all` to non-nil. Add commands to be
+run once to `mc/cmds-to-run-once` in ".mc-lists.el".
+
 ## Known limitations
 
 * isearch-forward and isearch-backward aren't supported with multiple cursors.
@@ -198,12 +211,13 @@ Run the tests with:
 * [Aleksey Fedotov](https://github.com/lexa) added `mc-hide-unmatched-lines-mode`
 * [Jules Tamagnan](https://github.com/jtamagnan) added `mc/mark-next-like-this-word` and `mc/mark-next-like-this-symbol`
 * [Ingo Lohmar](https://github.com/ilohmar) extended `mc/add-cursor-on-click` to toggle cursors.
+* [Andrea Orru](https://github.com/AndreaOrru) added `mc/mark-previous-like-this-word`/`-symbol`
 
 Thanks!
 
 ## License
 
-Copyright (C) 2012 Magnar Sveen
+Copyright (C) 2012-2016 Magnar Sveen
 
 Author: Magnar Sveen <magnars@gmail.com>
 Keywords: editing cursors

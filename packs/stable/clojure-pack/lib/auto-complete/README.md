@@ -25,10 +25,6 @@ work.
 
 ![](doc/ac-isearch.png "Increamental Search")
 
-## Demo Video
-
-* [YouTube](http://www.youtube.com/watch?v=rGVVnDxwJYE)
-
 ## Install
 
 `auto-complete` is available on [MELPA](https://melpa.org) and [MELPA-STABLE](https://stable.melpa.org)
@@ -40,7 +36,7 @@ You can install `auto-complete` with the following command.
 
 ## User Manual
 
-[Auto-Complete User Manual](http://auto-complete.org/doc/manual.html)
+[Auto-Complete User Manual](https://github.com/auto-complete/auto-complete/blob/master/doc/manual.md)
 
 
 ## Basic Configuration

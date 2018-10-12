@@ -29,7 +29,6 @@
 (require 'haskell-repl)
 (require 'haskell-load)
 (require 'haskell-commands)
-(require 'haskell-sandbox)
 (require 'haskell-modules)
 (require 'haskell-string)
 (require 'haskell-completions)
@@ -45,13 +44,10 @@
     (define-key map (kbd "M-.") 'haskell-mode-jump-to-def-or-tag)
     (define-key map (kbd "C-c C-k") 'haskell-interactive-mode-clear)
     (define-key map (kbd "C-c C-c") 'haskell-process-cabal-build)
-    (define-key map (kbd "C-c v c") 'haskell-cabal-visit-file)
+    (define-key map (kbd "C-c C-v") 'haskell-cabal-visit-file)
     (define-key map (kbd "C-c C-x") 'haskell-process-cabal)
     (define-key map (kbd "C-c C-b") 'haskell-interactive-switch)
     (define-key map (kbd "C-c C-z") 'haskell-interactive-switch)
-    (define-key map (kbd "M-n") 'haskell-goto-next-error)
-    (define-key map (kbd "M-p") 'haskell-goto-prev-error)
-    (define-key map (kbd "C-c M-p") 'haskell-goto-first-error)
     map)
   "Keymap for using `interactive-haskell-mode'.")
 
@@ -249,7 +245,8 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
 
 (defun haskell-process-prompt-restart (process)
   "Prompt to restart the died PROCESS."
-  (let ((process-name (haskell-process-name process)))
+  (let ((process-name (haskell-process-name process))
+        (cursor-in-echo-area t))
     (if haskell-process-suggest-restart
         (progn
           (haskell-mode-toggle-interactive-prompt-state)
@@ -257,7 +254,7 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
               (cond
                ((string-match "You need to re-run the 'configure' command."
                               (haskell-process-response process))
-                (cl-case (read-event
+                (cl-case (read-char-choice
                           (concat
                            "The Haskell process ended. Cabal wants you to run "
                            (propertize "cabal configure"
@@ -268,7 +265,8 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
                            "Cabal said:\n\n"
                            (propertize (haskell-process-response process)
                                        'face
-                                       'font-lock-comment-face)))
+                                       'font-lock-comment-face))
+                          '(?l ?n ?y))
                   (?y (let ((default-directory
                               (haskell-session-cabal-dir
                                (haskell-process-session process))))
@@ -283,12 +281,13 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
                                  (insert response)))))
                   (?n)))
                (t
-                (cl-case (read-event
+                (cl-case (read-char-choice
                           (propertize
-                           (format "The Haskell process `%s' has died. Restart? (y, n, l: show process log)"
+                           (format "The Haskell process `%s' has died. Restart? (y, n, l: show process log) "
                                    process-name)
                            'face
-                           'minibuffer-prompt))
+                           'minibuffer-prompt)
+                          '(?l ?n ?y))
                   (?y (haskell-process-start (haskell-process-session process)))
                   (?l (let* ((response (haskell-process-response process))
                              (buffer (get-buffer "*haskell-process-log*")))
@@ -300,16 +299,11 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
                   (?n))))
             ;; unwind
             (haskell-mode-toggle-interactive-prompt-state t)))
-      (message
-       (format "The Haskell process `%s' is dearly departed." process-name)))))
+      (message "The Haskell process `%s' is dearly departed." process-name))))
 
 (defun haskell-process ()
   "Get the current process from the current session."
   (haskell-session-process (haskell-session)))
-
-(defun haskell-interactive-buffer ()
-  "Get the interactive buffer of the session."
-  (haskell-session-interactive-buffer (haskell-session)))
 
 ;;;###autoload
 (defun haskell-kill-session-process (&optional session)
@@ -344,7 +338,7 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
 Give optional NEXT-P parameter to override value of
 `xref-prompt-for-identifier' during definition search."
   (interactive "P")
-  (let ((ident (haskell-ident-at-point))
+  (let ((ident (haskell-string-drop-qualifier (haskell-ident-at-point)))
         (tags-file-dir (haskell-cabal--find-tags-dir))
         (tags-revert-without-query t))
     (when (and ident
@@ -359,12 +353,8 @@ Give optional NEXT-P parameter to override value of
 ;;;###autoload
 (defun haskell-mode-after-save-handler ()
   "Function that will be called after buffer's saving."
-  (when haskell-tags-on-save (ignore-errors (haskell-mode-generate-tags)))
-  (when haskell-stylish-on-save
-    (ignore-errors (haskell-mode-stylish-buffer))
-    (let ((before-save-hook '())
-          (after-save-hook '()))
-      (basic-save-buffer))))
+  (when haskell-tags-on-save
+    (ignore-errors (haskell-mode-generate-tags))))
 
 ;;;###autoload
 (defun haskell-mode-tag-find (&optional _next-p)
@@ -504,7 +494,7 @@ for various things, but is optional."
   (insert-file-contents-literally
    (concat (haskell-session-current-dir (haskell-session))
            "/"
-           (haskell-guess-module-name)
+           (haskell-guess-module-name-from-file-name (buffer-file-name))
            ".imports")))
 
 (defun haskell-interactive-jump-to-error-line ()

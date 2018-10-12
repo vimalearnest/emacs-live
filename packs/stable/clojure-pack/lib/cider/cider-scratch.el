@@ -1,6 +1,6 @@
 ;;; cider-scratch.el --- *scratch* buffer for Clojure -*- lexical-binding: t -*-
 
-;; Copyright © 2014-2016 Bozhidar Batsov and CIDER contributors
+;; Copyright © 2014-2018 Bozhidar Batsov and CIDER contributors
 ;;
 ;; Author: Tim King <kingtim@gmail.com>
 ;;         Phil Hagelberg <technomancy@gmail.com>
@@ -52,8 +52,6 @@
     map))
 
 (defconst cider-scratch-buffer-name "*cider-scratch*")
-
-(push cider-scratch-buffer-name cider-ancillary-buffers)
 
 ;;;###autoload
 (defun cider-scratch ()

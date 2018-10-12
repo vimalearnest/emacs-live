@@ -29,16 +29,13 @@
 
 (require 'cl-lib)
 (require 'haskell-cabal)
-(require 'haskell-string)
 (require 'haskell-customize)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Globals
 
 ;; Used internally
-(defvar haskell-session)
-
-(make-variable-buffer-local 'haskell-session)
+(defvar-local haskell-session nil)
 
 (defvar haskell-sessions (list)
   "All Haskell sessions in the Emacs session.")
@@ -92,7 +89,7 @@
 This could be helpful for temporary or auxiliary buffers such as
 presentation mode buffers (e.g. in case when session is killed
 with all relevant buffers)."
-  (set (make-local-variable 'haskell-session) session))
+  (setq-local haskell-session session))
 
 (defun haskell-session-choose ()
   "Find a session by choosing from a list of the current sessions."
@@ -112,7 +109,7 @@ with all relevant buffers)."
 
 (defun haskell-session-clear ()
   "Clear the buffer of any Haskell session choice."
-  (set (make-local-variable 'haskell-session) nil))
+  (setq-local haskell-session nil))
 
 (defun haskell-session-lookup (name)
   "Get the session by name."

@@ -2,6 +2,61 @@
 
 ## master (unreleased)
 
+## 5.7.0 (2018-04-29)
+
+### New features
+
+* Add imenu support for multimethods.
+* Make imenu recognize indented def-forms.
+* New interactive command `clojure-cycle-when`.
+* New interactive command `clojure-cycle-not`.
+* New defcustom `clojure-comment-regexp` for font-locking `#_` or `#_` AND `(comment)` sexps.
+* [#459](https://github.com/clojure-emacs/clojure-mode/issues/459): Add font-locking for new built-ins added in Clojure 1.9.
+* [#471](https://github.com/clojure-emacs/clojure-mode/issues/471): Support tagged maps (new in Clojure 1.9) in paredit integration.
+* Consider `deps.edn` a project root.
+* [#467](https://github.com/clojure-emacs/clojure-mode/issues/467): Make `prog-mode-map` the parent keymap for `clojure-mode-map`.
+
+### Changes
+
+* Drop support for CLJX.
+* Remove special font-locking of Java interop methods & constants: There is no semantic distinction between interop methods, constants and global vars in Clojure.
+
+### Bugs fixed
+
+* [#458](https://github.com/clojure-emacs/clojure-mode/pull/458): Get correct ns when in middle of ns form with `clojure-find-ns`
+* [#447](https://github.com/clojure-emacs/clojure-mode/issues/241): When `electric-indent-mode` is on, force indentation from within docstrings.
+* [#438](https://github.com/clojure-emacs/clojure-mode/issues/438): Filling within a doc-string doesn't affect surrounding code.
+* Fix fill-paragraph in multi-line comments.
+* [#443](https://github.com/clojure-emacs/clojure-mode/issues/443): Fix behavior of `clojure-forward-logical-sexp` and `clojure-backward-logical-sexp` with conditional macros.
+* [#429](https://github.com/clojure-emacs/clojure-mode/issues/429): Fix a bug causing last occurrence of expression sometimes is not replaced when using `move-to-let`.
+* [#423](https://github.com/clojure-emacs/clojure-mode/issues/423): Make `clojure-match-next-def` more robust against zero-arity def-like forms.
+* [#451](https://github.com/clojure-emacs/clojure-mode/issues/451): Make project root directory calculation customized by `clojure-project-root-function`.
+* Fix namespace font-locking: namespaces may also contain non alphanumeric chars.
+
+
+## 5.6.1 (2016-12-21)
+
+### Bugs fixed
+
+* Make `clojure--read-let-bindings` more robust so `let` related refactorings do not bail on an incorrectly formatted binding form.
+
+## 5.6.0 (2016-11-18)
+
+### New features
+
+* New interactive command `clojure-mode-report-bug`.
+* New interactive command `clojure-view-guide`.
+* New interactive command `clojure-view-reference-section`.
+* New interactive command `clojure-view-cheatsheet`.
+* New interactive command `clojure-view-grimoire`.
+* New interactive command `clojure-view-style-guide`.
+* Make the refactoring keymap prefix customizable via `clojure-refactor-map-prefix`.
+* Port and rework `let`-related features from `clj-refactor`. Available features: introduce `let`, move to `let`, forward slurp form into `let`, backward slurp form into `let`.
+
+### Changes
+
+* `clojure-mode` now requires Emacs 24.4.
+
 ## 5.5.2 (2016-08-03)
 
 ### Bugs fixed

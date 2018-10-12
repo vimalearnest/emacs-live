@@ -1,6 +1,6 @@
 ;;; tests/indent.el --- Some tests for js2-mode.
 
-;; Copyright (C) 2009, 2011-2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011-2016  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -193,6 +193,10 @@
   |  4,
   |  5
   |]")
+
+(js2-deftest-indent no-continued-expression-after-regexp
+  "var re = /some value/
+  |str.match(re)")
 
 (js2-deftest-indent jsx-one-line
   "var foo = <div></div>;")

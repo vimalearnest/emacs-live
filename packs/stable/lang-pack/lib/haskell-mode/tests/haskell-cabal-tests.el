@@ -1,11 +1,11 @@
-;;; haskell-cabal-tests.el
+;;; haskell-cabal-tests.el -*- lexical-binding: t -*-
 ;;; Code:
 
 (require 'ert)
 (require 'haskell-cabal)
 
 (ert-deftest haskell-cabal-enum-targets-1 ()
-  "Test enumerating .cabal targets."
+  "Test enumerating .cabal targets for use by cabal-install."
   (with-temp-buffer
     (haskell-cabal-mode)
     (let ((scriptDir
@@ -13,8 +13,20 @@
              (or (symbol-file 'haskell-cabal-enum-targets-1)
                  (buffer-file-name)))))
       (setq default-directory (expand-file-name "test-data" scriptDir)))
-    (should (equal '("Test" "test-1" "bench-1" "bin-1")
+    (should (equal '("lib:Test" "test:test-1" "bench:bench-1" "exe:bin-1")
                    (haskell-cabal-enum-targets)))))
+
+(ert-deftest haskell-cabal-enum-targets-2 ()
+  "Test enumerating .cabal targets for use by stack."
+  (with-temp-buffer
+    (haskell-cabal-mode)
+    (let ((scriptDir
+           (file-name-directory
+            (or (symbol-file 'haskell-cabal-enum-targets-2)
+                (buffer-file-name)))))
+      (setq default-directory (expand-file-name "test-data" scriptDir)))
+    (should (equal '("Test:lib" "Test:test:test-1" "Test:bench:bench-1" "Test:exe:bin-1")
+                   (haskell-cabal-enum-targets 'stack-ghci)))))
 
 (ert-deftest haskell-cabal-get-field-1 ()
   (with-temp-buffer
@@ -52,7 +64,8 @@
 
 (ert-deftest haskell-cabal-period-is-a-word-break ()
   (with-temp-buffer
-    (insert "Executable bin
+    (insert "
+Executable bin
     Main-Is:           Main
     Exposed-Modules:   Some.Internal.Type
 ")
@@ -69,8 +82,9 @@
     (should (looking-at-p "Internal"))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-keep-trailing-commas ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base,
                       bytestring,
@@ -79,12 +93,12 @@
                       text
     Ghc-Options: -O -Wall
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "Build-Depends:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Build-Depends:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base,
                       bytestring,
@@ -95,8 +109,9 @@
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-keep-commas-before ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base
                     , bytestring
@@ -105,12 +120,12 @@
                     , text
     Ghc-Options: -O -Wall
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "Build-Depends:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Build-Depends:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base
                     , bytestring
@@ -121,19 +136,20 @@
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-no-commas ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Other-Modules:    Some.Module
                       Some.Other.Other.Module
                       Some.Other.Module
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "Other-Modules:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Other-Modules:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Other-Modules:    Some.Module
                       Some.Other.Module
@@ -141,20 +157,21 @@
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-mixed-styles ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base
                     , bytestring,
                       filepath, directory, text
     Ghc-Options: -O -Wall
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "Build-Depends:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Build-Depends:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Build-Depends:    base
                     , bytestring
@@ -165,110 +182,251 @@
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-quoted-items ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -fprof-auto \"-with-rtsopts=-N -p -s -h -i0.1\"
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "GHC-Options:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "GHC-Options:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -fprof-auto \"-with-rtsopts=-N -p -s -h -i0.1\"
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-no-commas-quoted-comma ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall -fprof-auto \"foo, bar\"
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "GHC-Options:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "GHC-Options:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall -fprof-auto \"foo, bar\"
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-single-line-quoted-comma ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall,-fprof-auto \"foo, bar\"
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "GHC-Options:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "GHC-Options:")
+    (haskell-cabal-subsection-arrange-lines)
+    (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall, -fprof-auto \"foo, bar\"
-"))))
+")))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-trailing-commas-quoted-comma ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall,
                       -fprof-auto \"foo, bar\"
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "GHC-Options:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "GHC-Options:")
+    (haskell-cabal-subsection-arrange-lines)
+    (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall,
                       -fprof-auto \"foo, bar\"
-"))))
+")))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-commas-before-quoted-comma ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall
                     , -fprof-auto \"foo, bar\"
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "GHC-Options:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "GHC-Options:")
+    (haskell-cabal-subsection-arrange-lines)
+    (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     GHC-Options:      -Wall
                     , -fprof-auto \"foo, bar\"
+")))
+
+(ert-deftest haskell-cabal-subsection-arrange-lines-comma-in-commment ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Other-Modules:    Some.Module
+                      Some.Other.Other.Module
+                      Some.Other.Module
+                      -- Foo, bar
+")
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Other-Modules:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Other-Modules:    Some.Module
+                      Some.Other.Module
+                      Some.Other.Other.Module
+                      -- Foo, bar
 "))))
 
 (ert-deftest haskell-cabal-subsection-arrange-lines-comma-in-commment ()
-  (should (with-temp-buffer
-            (insert "Executable bin-1
+  (with-temp-buffer
+    (insert "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Other-Modules:    Some.Module
                       Some.Other.Other.Module
                       Some.Other.Module
                       -- Foo, bar
 ")
-            (haskell-cabal-mode)
-            (goto-char (point-min))
-            (search-forward "Other-Modules:")
-            (haskell-cabal-subsection-arrange-lines)
-            (string= (buffer-string)
-                     "Executable bin-1
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "Other-Modules:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
     Main-Is:          TestParsing.hs
     Other-Modules:    Some.Module
                       Some.Other.Module
                       Some.Other.Other.Module
                       -- Foo, bar
 "))))
+
+(ert-deftest haskell-cabal-subsection-arrange-lines-dependencies ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends: aeson
+                 , text
+                 , base >= 4.8 && < 5
+                 , base64
+                 , bytestring
+                 , base-compat
+")
+    (haskell-cabal-mode)
+    (goto-char (point-min))
+    (search-forward "build-depends:")
+    (haskell-cabal-subsection-arrange-lines)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends: base >= 4.8 && < 5
+                 , aeson
+                 , base-compat
+                 , base64
+                 , bytestring
+                 , text
+"))))
+
+(ert-deftest haskell-cabal-add-dependency-01 ()
+  ;; cannot add dependency when there is no 'Build-depends' section already
+  :expected-result :failed
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+")
+    (haskell-cabal-mode)
+    (haskell-cabal-add-build-dependency "bytestring" nil t)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    bytestring
+"))))
+
+(ert-deftest haskell-cabal-add-dependency-02 ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    base
+")
+    (haskell-cabal-mode)
+    (haskell-cabal-add-build-dependency "bytestring" nil t)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    bytestring,
+                      base
+"))))
+
+(ert-deftest haskell-cabal-add-dependency-02 ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    base
+")
+    (haskell-cabal-mode)
+    (haskell-cabal-add-build-dependency "bytestring" nil t)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    bytestring,
+                      base
+"))))
+
+(ert-deftest haskell-cabal-add-dependency-03 ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    base,
+                      mtl
+")
+    (haskell-cabal-mode)
+    (haskell-cabal-add-build-dependency "bytestring" nil t)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    bytestring,
+                      base,
+                      mtl
+"))))
+
+(ert-deftest haskell-cabal-add-dependency-04 ()
+  (with-temp-buffer
+    (insert "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    base
+                    , mtl
+")
+    (haskell-cabal-mode)
+    (haskell-cabal-add-build-dependency "bytestring" nil t)
+    (should (string= (buffer-string) "
+Executable bin-1
+    Main-Is:          TestParsing.hs
+    Build-Depends:    bytestring
+                    , base
+                    , mtl
+"))))
+
 
 (provide 'haskell-cabal-tests)
 
