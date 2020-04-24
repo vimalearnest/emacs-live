@@ -218,7 +218,7 @@ only escape sequences defined in Haskell Report.")
 
 (defconst haskell-lexeme--char-literal-rx
   (rx-to-string `(: (group "'")
-                    (| (: (group (regexp "[[:alpha:]_([]")) (group "'")) ; exactly one char
+                    (| (: (group (regexp "[[:alpha:]_:([]")) (group "'")) ; exactly one char
                        (: (group (| (regexp "\\\\[^\n][^'\n]*") ; allow quote just after first backslash
                                     (regexp "[^[:alpha:]_:(['\n][^'\n]*")))
                           (| (group "'") "\n" (regexp "\\'"))))))
@@ -373,6 +373,7 @@ names according to Template Haskell specification."
   (let ((match-data-old (match-data)))
     (if (and
          (looking-at (rx-to-string `(: "[" (optional "$")
+                                       (regexp ,haskell-lexeme-modid-opt-prefix)
                                        (group (regexp ,haskell-lexeme-id))
                                        (group "|"))))
          (equal (haskell-lexeme-classify-by-first-char (char-after (match-beginning 1)))

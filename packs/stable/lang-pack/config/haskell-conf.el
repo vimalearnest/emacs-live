@@ -1,6 +1,7 @@
 (live-add-pack-lib "haskell-mode")
 (require 'haskell-font-lock)
-(require 'haskell-mode)
+(require 'haskell-mode-autoloads)
+;;(require 'haskell-mode)
 
 
 (add-to-list 'auto-mode-alist        '("\\.\\(?:[gh]s\\|hi\\)\\'" . haskell-mode))
@@ -12,7 +13,7 @@
 ;; Customization
 (custom-set-variables
  ;; Use cabal-dev for the GHCi session. Ensures our dependencies are in scope.
- '(haskell-process-type 'ghci)
+ '(haskell-process-type 'stack-ghci)
 
  ;; Use notify.el (if you have it installed) at the end of running
  ;; Cabal commands or generally things worth notifying.
@@ -29,11 +30,6 @@
 
 ;; Haskell main editing mode key bindings.
 (defun haskell-hook ()
-  ;; Use simple indentation.
-  (turn-on-haskell-simple-indent)
-  (define-key haskell-mode-map (kbd "<return>") 'haskell-simple-indent-newline-same-col)
-  (define-key haskell-mode-map (kbd "C-<return>") 'haskell-simple-indent-newline-indent)
-
   ;; Load the current file (and make a session if not already made).
   (define-key haskell-mode-map [?\C-c ?\C-l] 'haskell-process-load-file)
   (define-key haskell-mode-map [f5] 'haskell-process-load-file)

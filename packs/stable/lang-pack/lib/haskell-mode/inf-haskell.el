@@ -4,7 +4,7 @@
 ;; Copyright (C) 2017 Vasantha Ganesh Kanniappan <vasanthaganesh.k@tuta.io>
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Keywords: Haskell
+;; Keywords: languages, Haskell
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 (require 'comint)
 (require 'shell)             ; For directory tracking.
 (require 'etags)
-(require 'haskell-compat)
 (require 'compile)
 (require 'haskell-decl-scan)
 (require 'haskell-cabal)
@@ -57,16 +56,14 @@
   "Return the command with the arguments to start the repl based on the
 directory structure."
   (cl-ecase (haskell-process-type)
-    ('ghci       (cond ((eq system-type 'cygwin) (nconc "ghcii.sh"
-                                                        haskell-process-args-ghci))
-                       (t (nconc `(,haskell-process-path-ghci)
-                                 haskell-process-args-ghci))))
-    ('cabal-repl (nconc `(,haskell-process-path-cabal
-                          "repl")
-                        haskell-process-args-cabal-repl))
-    ('stack-ghci (nconc `(,haskell-process-path-stack
-                          "ghci")
-                        haskell-process-args-stack-ghci))))
+    ('ghci       (cond ((eq system-type 'cygwin) `("ghcii.sh" ,@haskell-process-args-ghci))
+                       (t (append
+                           (if (listp haskell-process-path-ghci)
+                               haskell-process-path-ghci
+                             (list haskell-process-path-ghci))
+                           haskell-process-args-ghci))))
+    ('cabal-repl `(,haskell-process-path-cabal "repl" ,@haskell-process-args-cabal-repl))
+    ('stack-ghci `(,haskell-process-path-stack "ghci" ,@haskell-process-args-stack-ghci))))
 
 (defconst inferior-haskell-info-xref-re
   "-- Defined at \\(.+\\):\\([0-9]+\\):\\([0-9]+\\)\\(?:-\\([0-9]+\\)\\)?$")
@@ -118,12 +115,12 @@ The format should be the same as for `compilation-error-regexp-alist'.")
 ;;; -> Make font lock work for strings, directories, hyperlinks
 ;;; -> Make font lock work for key words???
 
+(defvaralias 'inferior-haskell-mode-map 'inf-haskell-map)
+
 (defvar inf-haskell-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-d" 'comint-kill-subjob)
     map))
-
-(defvaralias 'inferior-haskell-mode-map 'inf-haskell-map)
 
 (define-derived-mode inferior-haskell-mode comint-mode "Inf-Haskell"
   "Major mode for interacting with an inferior Haskell process."
@@ -174,7 +171,8 @@ otherwise uses `haskell-program-name-with-args'.
 It runs the hook `inferior-haskell-hook' after starting the process and
 setting up the inferior-haskell buffer."
   (let ((command (haskell-program-name-with-args)))
-    (setq default-directory inferior-haskell-root-dir)
+    (when inferior-haskell-root-dir
+      (setq default-directory inferior-haskell-root-dir))
     (setq inferior-haskell-buffer
           (apply 'make-comint "haskell" (car command) nil (cdr command)))
     (with-current-buffer inferior-haskell-buffer
@@ -190,9 +188,7 @@ setting up the inferior-haskell buffer."
            (inferior-haskell-process))))
 
 ;;;###autoload
-(defalias 'run-haskell 'switch-to-haskell)
-;;;###autoload
-(defun switch-to-haskell ()
+(defun run-haskell ()
   "Show the inferior-haskell buffer.  Start the process if needed."
   (interactive)
   (let ((proc (inferior-haskell-process)))

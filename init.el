@@ -3,6 +3,13 @@
 ;; This is where everything starts. Do you remember this place?
 ;; It remembers you...
 
+
+;; Added by Package.el.  This must come before configurations of
+;; installed packages.  Don't delete this line.  If you don't want it,
+;; just comment it out by adding a semicolon to the start of the line.
+;; You may delete these explanatory comments.
+(package-initialize)
+
 (setq live-ascii-art-logo ";;
 ;;     MM\"\"\"\"\"\"\"\"`M
 ;;     MM  mmmmmmmM
@@ -225,4 +232,6 @@
   (load custom-file))
 
 (message "\n\n Pack loading completed. Your Emacs is Live...\n\n")
+
 (put 'downcase-region 'disabled nil)
+(put 'dired-find-alternate-file 'disabled nil)

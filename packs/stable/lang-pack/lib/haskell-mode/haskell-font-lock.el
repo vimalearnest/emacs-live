@@ -27,8 +27,8 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'haskell-compat)
 (require 'haskell-lexeme)
+(require 'haskell-string)
 (require 'font-lock)
 
 ;;;###autoload
@@ -93,7 +93,8 @@ be disabled at that position."
   '("case" "class" "data" "default" "deriving" "do"
     "else" "if" "import" "in" "infix" "infixl"
     "infixr" "instance" "let" "module" "mdo" "newtype" "of"
-    "rec" "pattern" "proc" "then" "type" "where" "_")
+    "rec" "pattern" "proc" "signature" "then" "type" "where" "_"
+    "anyclass" "stock" "via")
   "Identifiers treated as reserved keywords in Haskell."
   :group 'haskell-appearance
   :type '(repeat string))
@@ -539,7 +540,8 @@ on an uppercase identifier."
                         (goto-char (nth 8 state))
                         (skip-syntax-backward "w._")
                         (buffer-substring-no-properties (point) (nth 8 state))))
-               (lang-mode (cdr (assoc qqname haskell-font-lock-quasi-quote-modes))))
+               (lang-mode (cdr (assoc (haskell-string-drop-qualifier qqname)
+                                      haskell-font-lock-quasi-quote-modes))))
 
           (if (and lang-mode
                    (fboundp lang-mode))
@@ -704,7 +706,7 @@ on an uppercase identifier."
 (provide 'haskell-font-lock)
 
 ;; Local Variables:
-;; coding: utf-8-unix
+;; coding: utf-8
 ;; tab-width: 8
 ;; End:
 

@@ -48,7 +48,7 @@
   "Mark used for the old beginning of the prompt.")
 
 (defun haskell-interactive-prompt-regex ()
-  "Generate a regex for searching for any occurence of the prompt\
+  "Generate a regex for searching for any occurrence of the prompt\
 at the beginning of the line.  This should prevent any
 interference with prompts that look like haskell expressions."
   (concat "^" (regexp-quote haskell-interactive-prompt)))
@@ -63,7 +63,7 @@ interference with prompts that look like haskell expressions."
     (define-key map (kbd "RET") 'haskell-interactive-mode-return)
     (define-key map (kbd "SPC") 'haskell-interactive-mode-space)
     (define-key map (kbd "C-j") 'haskell-interactive-mode-newline-indent)
-    (define-key map (kbd "C-a") 'haskell-interactive-mode-beginning)
+    (define-key map [remap move-beginning-of-line] 'haskell-interactive-mode-bol)
     (define-key map (kbd "<home>") 'haskell-interactive-mode-beginning)
     (define-key map (kbd "C-c C-k") 'haskell-interactive-mode-clear)
     (define-key map (kbd "C-c C-c") 'haskell-process-interrupt)
@@ -104,7 +104,7 @@ Key bindings:
 (defvar haskell-interactive-mode-result-end
   nil
   "Mark used to figure out where the end of the current result output is.
-Used to distinguish betwen user input.")
+Used to distinguish between user input.")
 
 (defvar-local haskell-interactive-previous-buffer nil
   "Records the buffer to which `haskell-interactive-switch-back' should jump.
@@ -130,10 +130,13 @@ be nil.")
   :group 'haskell-interactive)
 
 ;;;###autoload
-(defface haskell-interactive-face-prompt2
+(defface haskell-interactive-face-prompt-cont
   '((t :inherit font-lock-keyword-face))
-  "Face for the prompt2 in multi-line mode."
+  "Face for GHCi's prompt-cont in multi-line mode."
   :group 'haskell-interactive)
+
+;;;###autoload
+(define-obsolete-face-alias 'haskell-interactive-face-prompt2 'haskell-interactive-face-prompt-cont "16.2")
 
 ;;;###autoload
 (defface haskell-interactive-face-compile-error
@@ -215,6 +218,15 @@ is at the prompt."
       haskell-interactive-mode-prompt-start
     nil))
 
+(defun haskell-interactive-mode-bol ()
+  "Go to beginning of current line, but after current prompt if any."
+  (interactive)
+  (let ((beg (line-beginning-position))
+        (end (line-end-position)))
+    (goto-char (if (>= end haskell-interactive-mode-prompt-start beg)
+                   haskell-interactive-mode-prompt-start
+                 beg))))
+
 (define-derived-mode haskell-error-mode
   special-mode "Error"
   "Major mode for viewing Haskell compile errors.")
@@ -257,7 +269,7 @@ do the
               ":{\n"
               (mapconcat #'identity lines "\n")
               "\n:}\n"
-              (format ":set prompt2 \"%s\"" haskell-interactive-prompt2)))))
+              (format ":set prompt-cont \"%s\"" haskell-interactive-prompt-cont)))))
 
 (defun haskell-interactive-mode-line-is-query (line)
   "Is LINE actually a :t/:k/:i?"
@@ -321,10 +333,10 @@ SESSION, otherwise operate on the current buffer."
                                  'result t)))
       (save-excursion
         (goto-char (point-max))
-        (when (string= text haskell-interactive-prompt2)
+        (when (string= text haskell-interactive-prompt-cont)
           (setq prop-text
                 (propertize prop-text
-                            'font-lock-face 'haskell-interactive-face-prompt2
+                            'font-lock-face 'haskell-interactive-face-prompt-cont
                             'read-only haskell-interactive-prompt-read-only)))
         (insert (ansi-color-apply prop-text))
         (haskell-interactive-mode-handle-h)
@@ -557,11 +569,11 @@ Cabal file is selected using SESSION's name, module matching is done in MSG."
     (haskell-mode-toggle-interactive-prompt-state)
     (unwind-protect
         (when (y-or-n-p
-               (format "Add `%s' to %s?"
+               (format "Add `%s' to %s? "
                        package-name
                        cabal-file))
           (haskell-cabal-add-dependency package-name version nil t)
-          (when (y-or-n-p (format "Enable -package %s in the GHCi session?" package-name))
+          (when (y-or-n-p (format "Enable -package %s in the GHCi session? " package-name))
             (haskell-process-queue-without-filters
              (haskell-session-process session)
              (format ":set -package %s" package-name))))
@@ -766,7 +778,7 @@ Will automatically import it qualified as Present."
                           (mapconcat 'identity (mapcar 'number-to-string id) ",")
                           hash)))
            (reply
-            (if (string-match "^*** " text)
+            (if (string-prefix-p "*** " text)
                 '((rep nil))
               (read text))))
       ;; Not necessary, but nice to restore it to the expression that
