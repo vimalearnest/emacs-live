@@ -245,7 +245,7 @@ low-resource systems."
 
 (defun sclang-read-symbol (prompt &optional default predicate require-match inherit-input-method)
   (if sclang-use-symbol-table
-      (flet ((make-minibuffer-local-map
+      (cl-flet ((make-minibuffer-local-map
 	      (parent-keymap)
 	      (let ((map (make-sparse-keymap)))
 		(set-keymap-parent map parent-keymap)
@@ -386,7 +386,7 @@ A defun may either be a class definition or a code block, see
 `sclang-beginning-of-defun-regexp'."
   (save-excursion
     (with-syntax-table sclang-mode-syntax-table
-      (multiple-value-bind (beg end) (sclang-point-in-defun-p)
+      (cl-multiple-value-bind (beg end) (sclang-point-in-defun-p)
 	(and beg end (buffer-substring-no-properties beg end))))))
 
 ;; =====================================================================
@@ -746,7 +746,7 @@ current-directory, iff `sclang-source-directoy' is nil."
 Looks for all repetitive patterns in ITEMS recursively.  Therefore, it is
 computationally expensive, especially when ITEMS is a long list.  If you don't
 want smart pattern guessing, use `sclang-format' directly to format your Pseq."
-  (flet ((find-reps (items)
+  (cl-flet ((find-reps (items)
 	   (let (r)
 	     (while items
 	       (let ((ret (car items))
@@ -759,7 +759,7 @@ want smart pattern guessing, use `sclang-format' directly to format your Pseq."
 			 (let ((sublst (subseq items 0 i)))
 			   (when (catch 'equal
 				   (let ((a items))
-				     (loop repeat rep do
+				     (cl-loop repeat rep do
 					   (let ((b sublst))
 					     (while b
 					       (unless (eql (car b) (car a))
@@ -772,8 +772,8 @@ want smart pattern guessing, use `sclang-format' directly to format your Pseq."
 						   sublst))
 				   skip (* i rep))
 			     (throw 'match-found t))
-			   (decf i))))
-		     (decf rep)))
+			   (cl-decf i))))
+		     (cl-decf rep)))
 		 (accept-process-output nil 0 100)
 		 (message "Processed...%S" ret) ;; invent better progress info
 		 (setq r (append r (list ret))

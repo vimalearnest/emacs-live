@@ -76,7 +76,7 @@
 (sclang-set-command-handler
  '_widgetSetStates
  (lambda (arg)
-   (multiple-value-bind (buffer id states value) arg
+   (cl-multiple-value-bind (buffer id states value) arg
      (with-current-buffer (get-buffer buffer)
        (let ((widget (cdr (find id sclang-widgets :key 'car))))
 	 (widget-put widget :states states)

@@ -381,7 +381,7 @@ for the gist."
         (desc (or (oref gist :description) ""))
         (public (eq t (oref gist :public)))
         (fnames (mapcar (lambda (f) (when f (oref f :filename))) (oref gist :files))))
-    (loop for (id label width sort format) in gist-list-format
+    (cl-loop for (id label width sort format) in gist-list-format
           collect (let ((string-formatter (if (eq id 'created)
                                               'format-time-string
                                             'format))
@@ -626,7 +626,7 @@ put it into `kill-ring'."
 \\{gist-list-menu-mode-map}"
   (setq tabulated-list-format
         (apply 'vector
-               (loop for (sym label width sort format) in gist-list-format
+               (cl-loop for (sym label width sort format) in gist-list-format
                      collect (list label width sort)))
         tabulated-list-padding 2
         tabulated-list-sort-key nil)

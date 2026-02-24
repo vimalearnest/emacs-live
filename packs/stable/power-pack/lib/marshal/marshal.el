@@ -136,24 +136,24 @@
   ((input :initarg :input)
    (output :initarg :output)))
 
-(defmethod marshal-open ((obj marshal-driver) &optional input)
+(cl-defmethod marshal-open ((obj marshal-driver) &optional input)
   (if input
       (oset obj :input input)
     (oset obj :output nil)))
 
-(defmethod marshal-write ((obj marshal-driver) path value)
+(cl-defmethod marshal-write ((obj marshal-driver) path value)
   (unless (slot-boundp obj :output)
     (error "Driver has not been opened in write mode")))
 
-(defmethod marshal-read ((obj marshal-driver) path)
+(cl-defmethod marshal-read ((obj marshal-driver) path)
   (unless (slot-boundp obj :input)
     (error "Driver has not been opened in read mode")))
 
-(defmethod marshal-close ((obj marshal-driver))
+(cl-defmethod marshal-close ((obj marshal-driver))
   (when (slot-boundp obj :output)
     (oref obj :output)))
 
-(defmethod marshal-guess-type :static ((obj marshal-driver) blob)
+(cl-defmethod marshal-guess-type ((obj marshal-driver) blob)
   (cond ((null blob) nil)
         ((booleanp blob) 'bool)
         ((stringp blob) 'string)
@@ -161,37 +161,37 @@
         ((listp blob) 'list)
         ((ht? blob) 'hash)))
 
-(defmethod marshal-preprocess ((obj marshal-driver) blob)
+(cl-defmethod marshal-preprocess ((obj marshal-driver) blob)
   blob)
 
-(defmethod marshal-postprocess ((obj marshal-driver) blob)
+(cl-defmethod marshal-postprocess ((obj marshal-driver) blob)
   blob)
 
-(defmethod marshal-unmarshal-null :static ((obj marshal-driver))
+(cl-defmethod marshal-unmarshal-null ((obj marshal-driver))
   nil)
 
-(defmethod marshal-marshal-null :static ((obj marshal-driver))
+(cl-defmethod marshal-marshal-null ((obj marshal-driver))
   nil)
 
-(defmethod marshal-unmarshal-string :static ((obj marshal-driver) s)
+(cl-defmethod marshal-unmarshal-string ((obj marshal-driver) s)
   (format "%s" s))
 
-(defmethod marshal-marshal-string :static ((obj marshal-driver) s)
+(cl-defmethod marshal-marshal-string ((obj marshal-driver) s)
   s)
 
-(defmethod marshal-unmarshal-number :static ((obj marshal-driver) i)
+(cl-defmethod marshal-unmarshal-number ((obj marshal-driver) i)
   i)
 
-(defmethod marshal-marshal-number :static ((obj marshal-driver) i)
+(cl-defmethod marshal-marshal-number ((obj marshal-driver) i)
   i)
 
-(defmethod marshal-unmarshal-bool :static ((obj marshal-driver) b)
+(cl-defmethod marshal-unmarshal-bool ((obj marshal-driver) b)
   (equal b t))
 
-(defmethod marshal-marshal-bool :static ((obj marshal-driver) b)
+(cl-defmethod marshal-marshal-bool ((obj marshal-driver) b)
   (equal b t))
 
-(defmethod marshal-unmarshal-list :static ((obj marshal-driver) l l-type)
+(cl-defmethod marshal-unmarshal-list ((obj marshal-driver) l l-type)
   (let ((type (or (and (object-p obj) (eieio-object-class obj))
                   obj)))
     (cons (unmarshal-internal (when (consp l-type)
@@ -199,14 +199,14 @@
                               (car l) type)
           (unmarshal-internal l-type (cdr l) type))))
 
-(defmethod marshal-marshal-list :static ((obj marshal-driver) l)
+(cl-defmethod marshal-marshal-list ((obj marshal-driver) l)
   (unless (null l)
     (let ((type (or (and (object-p obj) (eieio-object-class obj))
                     obj)))
       (cons (marshal-internal (car l) type)
             (marshal-internal (cdr l) type)))))
 
-(defmethod marshal-unmarshal-hash :static ((obj marshal-driver) h h-type)
+(cl-defmethod marshal-unmarshal-hash ((obj marshal-driver) h h-type)
   (let ((type (or (and (object-p obj) (eieio-object-class obj))
                   obj))
         (k-type (when (consp h-type) (nth 1 h-type)))
@@ -216,7 +216,7 @@
                (cons (unmarshal-internal k-type (car item) type)
                      (unmarshal-internal v-type (cdr item) type))) h))))
 
-(defmethod marshal-marshal-hash :static ((obj marshal-driver) h)
+(cl-defmethod marshal-marshal-hash ((obj marshal-driver) h)
   (unless (ht-empty? h)
     (let ((type (or (and (object-p obj) (eieio-object-class obj))
                     obj)))
@@ -230,11 +230,11 @@
 (defclass marshal-driver-alist (marshal-driver)
   ())
 
-(defmethod marshal-write ((obj marshal-driver-alist) path value)
+(cl-defmethod marshal-write ((obj marshal-driver-alist) path value)
   (call-next-method)
   (object-add-to-list obj :output (cons path value)))
 
-(defmethod marshal-read ((obj marshal-driver-alist) path)
+(cl-defmethod marshal-read ((obj marshal-driver-alist) path)
   (call-next-method)
   (cdr (assoc path (oref obj :input))))
 
@@ -243,19 +243,19 @@
 (defclass marshal-driver-json (marshal-driver-alist)
   ())
 
-(defmethod marshal-preprocess ((obj marshal-driver-json) blob)
+(cl-defmethod marshal-preprocess ((obj marshal-driver-json) blob)
   (let ((json-array-type 'list)
         (json-object-type 'alist)
         (json-false :json-false))
     (json-read-from-string (call-next-method))))
 
-(defmethod marshal-postprocess ((obj marshal-driver-json) blob)
+(cl-defmethod marshal-postprocess ((obj marshal-driver-json) blob)
   (json-encode (call-next-method)))
 
-(defmethod marshal-unmarshal-bool :static ((obj marshal-driver-json) b)
+(cl-defmethod marshal-unmarshal-bool ((obj marshal-driver-json) b)
   (not (eq b :json-false)))
 
-(defmethod marshal-marshal-bool :static ((obj marshal-driver-json) b)
+(cl-defmethod marshal-marshal-bool ((obj marshal-driver-json) b)
   (or b :json-false))
 
 ;;; plist-based driver
@@ -263,11 +263,11 @@
 (defclass marshal-driver-plist (marshal-driver)
   ())
 
-(defmethod marshal-write ((obj marshal-driver-plist) path value)
+(cl-defmethod marshal-write ((obj marshal-driver-plist) path value)
   (call-next-method)
   (oset obj :output (plist-put (oref obj :output) path value)))
 
-(defmethod marshal-read ((obj marshal-driver-plist) path)
+(cl-defmethod marshal-read ((obj marshal-driver-plist) path)
   (call-next-method)
   (plist-get (oref obj :input) path))
 
@@ -319,10 +319,10 @@
   ((-marshal-info :allocation :class :initform nil :protection :protected)
    (-type-info :allocation :class :initform nil :protection :protected)))
 
-(defmethod marshal-get-marshal-info :static ((obj marshal-base))
+(cl-defmethod marshal-get-marshal-info ((obj marshal-base))
   nil)
 
-(defmethod marshal-get-type-info :static ((obj marshal-base))
+(cl-defmethod marshal-get-type-info ((obj marshal-base))
   nil)
 
 (defun marshal-get-driver (type)
@@ -331,7 +331,7 @@
                  'marshal-driver)))
     (make-instance cls)))
 
-(defmethod marshal-internal ((obj marshal-base) type &optional hint)
+(cl-defmethod marshal-internal ((obj marshal-base) type &optional hint)
   (let* ((type (or (and (class-p type)
                         (car (rassoc type marshal-drivers)))
                    type))
@@ -353,7 +353,7 @@
                             (cdr (assoc s (marshal-get-type-info obj)))))))))
     (marshal-close driver)))
 
-(defmethod marshal-internal ((obj nil) type &optional hint)
+(cl-defmethod marshal-internal ((obj t) type &optional hint)
   (let ((driver (marshal-get-driver type)))
     (cond ((and (null hint) (null obj))
            (marshal-marshal-null driver))
@@ -375,7 +375,7 @@
     (marshal-postprocess driver
                          (marshal-internal obj type))))
 
-(defmethod unmarshal--obj ((obj marshal-base) blob type)
+(cl-defmethod unmarshal--obj ((obj marshal-base) blob type)
   (let ((driver (marshal-get-driver type))
         (marshal-info (cdr (assoc type (marshal-get-marshal-info obj)))))
     (marshal-open driver blob)
@@ -408,7 +408,7 @@
                obj)))
     (unmarshal--internal obj blob type)))
 
-(defmethod unmarshal--internal ((obj nil) blob type)
+(cl-defmethod unmarshal--internal ((obj t) blob type)
   (let* ((driver (marshal-get-driver type))
          (obj (or obj (marshal-guess-type driver blob))))
     (cond ((or (null obj) (null blob))
@@ -426,7 +426,7 @@
                (and (consp obj) (eq (car obj) 'hash)))
            (marshal-unmarshal-hash driver blob obj)))))
 
-(defmethod unmarshal--internal ((obj marshal-base) blob type)
+(cl-defmethod unmarshal--internal ((obj marshal-base) blob type)
   (let ((type (or (and (class-p type)
                        (car (rassoc type marshal-drivers)))
                   type)))
@@ -479,7 +479,7 @@
          (,@slots)
          ,@options-and-doc)
 
-       (defmethod marshal-get-class-slot :static ((obj ,name))
+       (cl-defmethod marshal-get-class-slot ((obj ,name))
          (let ((cls (if (eieio-object-p obj)
                         (eieio-object-class obj)
                       obj)))
@@ -487,7 +487,7 @@
 
        (put ',name :marshal-class-slot ',cls-slot)
 
-       (defmethod marshal-get-marshal-info :static ((obj ,name))
+       (cl-defmethod marshal-get-marshal-info ((obj ,name))
          (let ((cls (if (eieio-object-p obj)
                         (eieio-object-class obj)
                       obj)))
@@ -497,9 +497,9 @@
        (dolist (cls ',superclass)
          (put ',name :marshal-info
               (marshal--alist-merge (get ',name :marshal-info)
-                                    (marshal-get-marshal-info cls) t)))
+                                    (get cls :marshal-info) t)))
 
-       (defmethod marshal-get-type-info :static ((obj ,name))
+       (cl-defmethod marshal-get-type-info ((obj ,name))
          (let ((cls (if (eieio-object-p obj)
                         (eieio-object-class obj)
                         obj)))
@@ -509,7 +509,7 @@
        (dolist (cls ',superclass)
          (put ',name :type-info
               (marshal--alist-merge (get ',name :type-info)
-                                    (marshal-get-type-info cls) t)))
+                                    (get cls :type-info) t)))
 
        ,name)))
 

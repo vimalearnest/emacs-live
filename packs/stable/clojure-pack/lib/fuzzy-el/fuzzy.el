@@ -49,10 +49,10 @@
   (declare (indent 1))
   (let ((start (gensym "START")))
     `(let ((,start (fuzzy-current-time-float)))
-       (flet ((,elapsed-name () (- (fuzzy-current-time-float) ,start)))
+       (cl-flet ((,elapsed-name () (- (fuzzy-current-time-float) ,start)))
          ,@body))))
 
-(defun* fuzzy-add-to-list-as-sorted (list-var value &key (test '<) (key 'identity))
+(cl-defun fuzzy-add-to-list-as-sorted (list-var value &key (test '<) (key 'identity))
   (let ((list (symbol-value list-var)))
     (if (or (null list)
             (funcall test
@@ -72,7 +72,7 @@
   (let ((elapsed (gensym "ELAPSED")))
     `(catch 'timeout
        (fuzzy-with-stopwatch (,elapsed)
-         (flet ((,tick-name ()
+         (cl-flet ((,tick-name ()
                   (when (and ,timeout (< ,timeout (,elapsed)))
                     (throw 'timeout ,timeout-result))))
            ,@body)))))
@@ -80,7 +80,7 @@
 (defun fuzzy-count-matches-in-string (regexp string &optional start end)
   (setq start (or start 0)
         end   (or end (length string)))
-  (loop for start = start then (1+ matched)
+  (cl-loop for start = start then (1+ matched)
         for matched = (let ((case-fold-search nil))
                         (string-match regexp string start))
         while (and matched (< (1+ matched) end))
@@ -100,31 +100,31 @@ http://en.wikipedia.org/wiki/Jaro-Winkler_distance."
          (tr 0)
          (p 0)
          cs1 cs2)
-    (loop with seen = (make-vector l2 nil)
+    (cl-loop with seen = (make-vector l2 nil)
           for i below l1
           for c1 = (aref s1 i) do
-          (loop for j from (max 0 (- i r)) below (min l2 (+ i r))
+          (cl-loop for j from (max 0 (- i r)) below (min l2 (+ i r))
                 for c2 = (aref s2 j)
                 if (and (char-equal c1 c2)
                         (null (aref seen j))) do
                   (push c1 cs1)
                   (aset seen j c2)
-                  (incf m)
+                  (cl-incf m)
                 and return nil)
           finally
           (setq cs1 (nreverse cs1)
-                cs2 (loop for i below l2
+                cs2 (cl-loop for i below l2
                           for c = (aref seen i)
                           if c collect c)))
-    (loop for c1 in cs1
+    (cl-loop for c1 in cs1
           for c2 in cs2
           if (not (char-equal c1 c2))
-          do (incf tr))
-    (loop for i below (min m 5)
+          do (cl-incf tr))
+    (cl-loop for i below (min m 5)
           for c1 across s1
           for c2 across s2
           while (char-equal c1 c2)
-          do (incf p))
+          do (cl-incf p))
     (if (eq m 0)
         0.0
       (setq m (float m))
@@ -167,7 +167,7 @@ http://en.wikipedia.org/wiki/Jaro-Winkler_distance."
                  (funcall function s1 s2)
                  fuzzy-match-score-cache))))
 
-(defun* fuzzy-match (s1 s2 &optional (function fuzzy-match-score-function))
+(cl-defun fuzzy-match (s1 s2 &optional (function fuzzy-match-score-function))
   "Return t if S1 and S2 are matched. FUNCTION is a function
 scoring between S1 and S2. The score must be between 0.0 and
 1.0."
@@ -182,7 +182,7 @@ scoring between S1 and S2. The score must be between 0.0 and
 
 (defun fuzzy-all-completions (string collection)
   "`all-completions' with fuzzy matching."
-  (loop with length = (length string)
+  (cl-loop with length = (length string)
         for str in collection
 	for len = (min (length str) (+ length fuzzy-match-accept-length-difference))
         if (fuzzy-match string (substring str 0 len))
@@ -196,7 +196,7 @@ scoring between S1 and S2. The score must be between 0.0 and
   (format ".\\{0,%s\\}" fuzzy-match-accept-length-difference))
 
 (defun fuzzy-search-regexp-compile (string)
-  (flet ((opt (n)
+  (cl-flet ((opt (n)
            (regexp-opt-charset
             (append (substring string
                                (max 0 (- n 1))
@@ -204,11 +204,11 @@ scoring between S1 and S2. The score must be between 0.0 and
                     nil))))
     (concat
      "\\("
-     (loop for i below (length string)
+     (cl-loop for i below (length string)
            for c = (if (evenp i) (opt i) fuzzy-search-some-char-regexp)
            concat c)
      "\\|"
-     (loop for i below (length string)
+     (cl-loop for i below (length string)
            for c = (if (oddp i) (opt i) fuzzy-search-some-char-regexp)
            concat c)
      "\\)")))
@@ -275,7 +275,7 @@ scoring between S1 and S2. The score must be between 0.0 and
              (and (eq fuzzy-isearch-enabled 'on-failed)
                   (null isearch-success)
                   isearch-wrapped
-                  (> (incf fuzzy-isearch-failed-count) 1)))
+                  (> (cl-incf fuzzy-isearch-failed-count) 1)))
          (unless fuzzy-isearch
            (fuzzy-isearch-activate))
          (if isearch-forward 'fuzzy-search-forward 'fuzzy-search-backward))
@@ -307,7 +307,7 @@ scoring between S1 and S2. The score must be between 0.0 and
 
 (defun fuzzy-quicksilver-make-abbrev-regexp (abbrev)
   (concat "^"
-          (loop for char across (downcase abbrev) concat
+          (cl-loop for char across (downcase abbrev) concat
                 (format ".*?\\(%s\\)"
                         (regexp-quote (string char))))))
 
@@ -333,7 +333,7 @@ scoring between S1 and S2. The score must be between 0.0 and
    ((let ((regexp (fuzzy-quicksilver-make-abbrev-regexp abbrev))
           (case-fold-search t))
       (string-match regexp string))
-    (loop with groups = (cddr (match-data))
+    (cl-loop with groups = (cddr (match-data))
           while groups
           for prev    = 0 then end
           for start   = (pop groups)
@@ -362,7 +362,7 @@ scoring between S1 and S2. The score must be between 0.0 and
                  (fuzzy-quicksilver-abbrev-score-nocache string abbrev)
                  fuzzy-quicksilver-abbrev-score-cache))))
 
-(defun* fuzzy-quicksilver-realtime-abbrev-score (list
+(cl-defun fuzzy-quicksilver-realtime-abbrev-score (list
                                                  abbrev
                                                  &key
                                                  limit
@@ -370,7 +370,7 @@ scoring between S1 and S2. The score must be between 0.0 and
                                                  (quality 0.7)
                                                  &aux new-list)
   (fuzzy-with-timeout (timeout (nreverse new-list))
-    (loop with length = 0
+    (cl-loop with length = 0
           for string in list
           for score = (fuzzy-quicksilver-abbrev-score string abbrev)
           if (>= score quality) do
@@ -378,7 +378,7 @@ scoring between S1 and S2. The score must be between 0.0 and
            'new-list (cons string score)
            :test '<
            :key 'cdr)
-          (incf length)
+          (cl-incf length)
           if (and limit (> length limit)) do
           (pop new-list)
           (setq length limit)

@@ -409,7 +409,7 @@ Optional args are the same as `vhl/add-range'."
   (let ((fn-on  (intern (format "vhl/ext/%s/on" sym)))
         (fn-off (intern (format "vhl/ext/%s/off" sym)))
         (cust-name (intern (format "vhl/use-%s-extension-p" sym))))
-    (pushnew sym vhl/.installed-extensions)
+    (cl-pushnew sym vhl/.installed-extensions)
     (eval `(defcustom ,cust-name t
              ,(format "A flag if highlighting support for `%s' is on or not." sym)
              :type 'boolean
@@ -532,24 +532,24 @@ would be listed in english.
 This is included as a private support function for generating
 lists of symbols to be included docstrings of auto-generated
 extensions."
-  (assert (listp items))
+  (cl-assert (listp items))
   (cond ((null items)
          ;; Zero items
          "")
         ((null (cdr items))
          ;; One item
-         (assert (stringp (first items)))
+         (cl-assert (stringp (first items)))
          (format "%s" (first items)))
         ((null (cddr items))
          ;; Two items
-         (assert (stringp (first items)))
-         (assert (stringp (second items)))
+         (cl-assert (stringp (first items)))
+         (cl-assert (stringp (second items)))
          (apply 'format "%s and %s" items))
         ((null (cdddr items))
          ;; Three items
-         (assert (stringp (first items)))
-         (assert (stringp (second items)))
-         (assert (stringp (third items)))
+         (cl-assert (stringp (first items)))
+         (cl-assert (stringp (second items)))
+         (cl-assert (stringp (third items)))
          (apply 'format "%s, %s, and %s" items))
         (t
          ;; 4 or more items
@@ -559,7 +559,7 @@ extensions."
 (defmacro vhl/define-extension (name &rest functions)
   "Define a VHL extension called NAME that applies standard VHL
   advice to each of FUNCTIONS."
-  (assert (first functions))
+  (cl-assert (first functions))
   (let* ((name-string (symbol-name (eval name)))
          (function-list-string (vhl/.make-list-string
                                 (mapcar (lambda (f) (format "`%s'" (symbol-name (eval f))))

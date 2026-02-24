@@ -37,8 +37,8 @@
 
 (defmacro define-inflectors (&rest specs)
   (cons 'progn
-        (loop for (type . rest) in specs
-              collect (case type
+        (cl-loop for (type . rest) in specs
+              collect (cl-case type
                         (:singular `(push (quote ,rest) inflection-singulars))
                         (:plural `(push (quote ,rest) inflection-plurals))
                         (:irregular `(push (quote ,rest) inflection-irregulars))
@@ -51,13 +51,13 @@
     `(lexical-let ((,str ,string))
        ;; Use lexical-let to make closures (in flet).
        (when (string-match ,regex ,str)
-         (symbol-macrolet ,(loop for i to 9 collect
+         (cl-symbol-macrolet ,(cl-loop for i to 9 collect
                                  (let ((sym (intern (concat "$" (number-to-string i)))))
                                    `(,sym (match-string ,i ,str))))
-           (flet (($ (i) (match-string i ,str))
+           (cl-flet (($ (i) (match-string i ,str))
                   (sub (replacement &optional (i 0) &key fixedcase literal-string)
                        (replace-match replacement fixedcase literal-string ,str i)))
-             (symbol-macrolet ( ;;before
+             (cl-symbol-macrolet ( ;;before
                                ($b (substring ,str 0 (match-beginning 0)))
                                ;;match
                                ($m (match-string 0 ,str))
@@ -135,9 +135,9 @@
   (when (stringp str)
     (or (car (member str inflection-uncountables))
         (caar (member* (downcase str) inflection-irregulars :key 'cadr :test 'equal))
-        (loop for (from to) in inflection-singulars
+        (cl-loop for (from to) in inflection-singulars
               for singular = (string=~ from str (sub to))
-              when singular do (return singular))
+              when singular do (cl-return singular))
         str)))
 
 ;;;###autoload
@@ -145,9 +145,9 @@
   (when (stringp str)
     (or (car (member str inflection-uncountables))
         (cadar (member* (downcase str) inflection-irregulars :key 'car :test 'equal))
-        (loop for (from to) in inflection-plurals
+        (cl-loop for (from to) in inflection-plurals
               for plurals = (string=~ from str (sub to))
-              when plurals do (return plurals))
+              when plurals do (cl-return plurals))
         str)))
 
 ;; Local Variables:

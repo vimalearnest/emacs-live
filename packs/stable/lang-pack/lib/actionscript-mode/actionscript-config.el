@@ -37,7 +37,7 @@
 	"Return a new string where all occurrences of oldchar
 have been replaced with newchar."
 	(let ((new-string (copy-sequence string)))
-		(do ((i 0 (1+ i)))
+		(cl-do ((i 0 (1+ i)))
 				((= i (length new-string)) nil)
 			(let ((x (aref new-string i)))
 				(when (char-equal x oldchar)

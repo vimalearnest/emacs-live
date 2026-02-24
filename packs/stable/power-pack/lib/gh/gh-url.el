@@ -57,7 +57,7 @@
    (transform :initarg :transform :initform nil)
    (-req :initarg :-req :initform nil)))
 
-(defmethod gh-url-response-set-data ((resp gh-url-response) data)
+(cl-defmethod gh-url-response-set-data ((resp gh-url-response) data)
   (let ((transform (oref resp :transform)))
     (oset resp :data
           (if transform
@@ -69,10 +69,10 @@
 (defclass gh-url-callback ()
   nil)
 
-(defmethod gh-url-callback-run ((cb gh-url-callback) resp)
+(cl-defmethod gh-url-callback-run ((cb gh-url-callback) resp)
   nil)
 
-(defmethod gh-url-response-run-callbacks ((resp gh-url-response))
+(cl-defmethod gh-url-response-run-callbacks ((resp gh-url-response))
   (let ((copy-list (lambda (list)
                      (if (consp list)
                          (let ((res nil))
@@ -90,7 +90,7 @@
         (object-remove-from-list resp :callbacks cb))))
   resp)
 
-(defmethod gh-url-add-response-callback ((resp gh-url-response) callback)
+(cl-defmethod gh-url-add-response-callback ((resp gh-url-response) callback)
   (object-add-to-list resp :callbacks callback t)
   (if (oref resp :data-received)
     (gh-url-response-run-callbacks resp)
@@ -109,7 +109,7 @@
       (push (cons 'status-string
                   (or (match-string 4 status-line) ""))
             headers))
-    (loop for line in (cdr header-lines)
+    (cl-loop for line in (cdr header-lines)
        if (string-match
            "^\\([A-Za-z0-9.-]+\\):[ ]*\\(.*\\)"
            line)
@@ -119,11 +119,11 @@
          (push (cons name value) headers)))
     headers))
 
-(defmethod gh-url-response-finalize ((resp gh-url-response))
+(cl-defmethod gh-url-response-finalize ((resp gh-url-response))
   (when (oref resp :data-received)
     (gh-url-response-run-callbacks resp)))
 
-(defmethod gh-url-response-init ((resp gh-url-response)
+(cl-defmethod gh-url-response-init ((resp gh-url-response)
                                  buffer)
   (declare (special url-http-end-of-headers))
   (unwind-protect
@@ -142,7 +142,7 @@
 
 (defun gh-url-set-response (status req-resp)
   (set-buffer-multibyte t)
-  (destructuring-bind (req resp) req-resp
+  (cl-destructuring-bind (req resp) req-resp
     (let ((responses-req (clone req))
           (num (oref req :num-retries)))
       (oset resp :-req responses-req)
@@ -161,7 +161,7 @@
 (defun gh-url-params-encode (form)
   (concat "?" (gh-url-form-encode form)))
 
-(defmethod gh-url-run-request ((req gh-url-request) &optional resp)
+(cl-defmethod gh-url-run-request ((req gh-url-request) &optional resp)
   (let ((url-registered-auth-schemes
          '(("basic" ignore . 4))) ;; don't let default handlers kick in
         (url-privacy-level 'high)

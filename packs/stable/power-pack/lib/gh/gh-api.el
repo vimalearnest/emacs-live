@@ -63,13 +63,13 @@
    (cache-cls :initform gh-cache :allocation :class))
   "Github API")
 
-(defmethod logito-log ((api gh-api) level tag string &rest objects)
+(cl-defmethod logito-log ((api gh-api) level tag string &rest objects)
   (apply 'logito-log (oref api :log) level tag string objects))
 
-(defmethod initialize-instance ((api gh-api) &rest args)
+(cl-defmethod initialize-instance ((api gh-api) &rest args)
   (call-next-method))
 
-(defmethod gh-api-set-default-auth ((api gh-api) auth)
+(cl-defmethod gh-api-set-default-auth ((api gh-api) auth)
   (let ((auth (or (oref api :auth) auth))
         (cache (oref api :cache))
         (classname (symbol-name (funcall (if (fboundp 'eieio-object-class)
@@ -87,14 +87,14 @@
                                 classname
                                 (gh-api-get-username api)))))))
 
-(defmethod gh-api-expand-resource ((api gh-api)
+(cl-defmethod gh-api-expand-resource ((api gh-api)
                                    resource)
   resource)
 
 (defun gh-api-enterprise-username-filter (username)
   (replace-regexp-in-string (regexp-quote ".") "-" username))
 
-(defmethod gh-api-get-username ((api gh-api))
+(cl-defmethod gh-api-get-username ((api gh-api))
   (let ((username (oref (oref api :auth) :username)))
     (funcall gh-api-username-filter username)))
 
@@ -109,7 +109,7 @@
                  (const :tag "OAuth" gh-oauth-authenticator))
   :group 'gh-api)
 
-(defmethod initialize-instance ((api gh-api-v3) &rest args)
+(cl-defmethod initialize-instance ((api gh-api-v3) &rest args)
   (call-next-method)
   (let ((gh-profile-current-profile (gh-profile-current-profile)))
     (oset api :profile (gh-profile-current-profile))
@@ -135,7 +135,7 @@
 (defun gh-api-json-encode (json)
   (encode-coding-string (json-encode-list json) 'utf-8))
 
-(defmethod gh-url-response-set-data ((resp gh-api-response) data)
+(cl-defmethod gh-url-response-set-data ((resp gh-api-response) data)
   (call-next-method resp (gh-api-json-decode data)))
 
 ;;;###autoload
@@ -147,15 +147,15 @@
 (defclass gh-api-paged-response (gh-api-response)
   ())
 
-(defmethod gh-api-paging-links ((resp gh-api-paged-response))
+(cl-defmethod gh-api-paging-links ((resp gh-api-paged-response))
   (let ((links-header (cdr (assoc "Link" (oref resp :headers)))))
     (when links-header
-      (loop for item in (split-string links-header ", ")
+      (cl-loop for item in (split-string links-header ", ")
             when (string-match "^<\\(.*\\)>; rel=\"\\(.*\\)\"" item)
             collect (cons (match-string 2 item)
                           (match-string 1 item))))))
 
-(defmethod gh-url-response-set-data ((resp gh-api-paged-response) data)
+(cl-defmethod gh-url-response-set-data ((resp gh-api-paged-response) data)
   (let ((previous-data (oref resp :data))
         (next (cdr (assoc "next" (gh-api-paging-links resp)))))
     (call-next-method)
@@ -178,7 +178,7 @@
           (oset req :query nil)
           (gh-url-run-request req resp))))))
 
-(defmethod gh-api-authenticated-request
+(cl-defmethod gh-api-authenticated-request
   ((api gh-api) transformer method resource &optional data params page-limit)
   (let* ((fmt (oref api :data-format))
          (headers (cond ((eq fmt :form)
@@ -247,7 +247,7 @@
    (key :initarg :key)
    (revive :initarg :revive)))
 
-(defmethod gh-url-callback-run ((cb gh-api-callback) resp)
+(cl-defmethod gh-url-callback-run ((cb gh-api-callback) resp)
   (let ((cache (oref cb :cache))
         (key (oref cb :key)))
     (if (and (oref cb :revive) (equal (oref resp :http-status) 304))

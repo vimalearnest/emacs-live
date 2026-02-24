@@ -522,9 +522,9 @@ whitespace. Keep point at same relative point in the line."
            ;; Don't count if in string or comment.
            ((as3-face-at-point (- (point) 1)))
            ((looking-back "\\s)")
-            (incf close-count))
+            (cl-incf close-count))
            ((looking-back "\\s(")
-            (incf open-count))
+            (cl-incf open-count))
            )))
       (- open-count close-count))))
 

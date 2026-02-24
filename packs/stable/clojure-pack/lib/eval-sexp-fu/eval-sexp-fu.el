@@ -140,7 +140,7 @@
 (defmacro esf-konstantly (v)
   `(lambda (&rest _it) ,v))
 (defun esf-every0 (pred xs)
-  (labels ((rec (pred xs acc)
+  (cl-labels ((rec (pred xs acc)
              (if (null xs)
                  acc
                (let ((it (funcall pred (car xs))))
@@ -170,10 +170,10 @@
                                 eval-sexp-fu-flash-duration)
                            nil flash-error
                            bounds buf face))))
-(defun* eval-sexp-fu-flash (bounds &optional (face eval-sexp-fu-flash-face) (eface eval-sexp-fu-flash-error-face))
+(cl-defun eval-sexp-fu-flash (bounds &optional (face eval-sexp-fu-flash-face) (eface eval-sexp-fu-flash-error-face))
   "BOUNS is either the cell or the function returns, such that (BEGIN . END).
 Reurn the 4 values; bounds, highlighting, un-highlighting and error flashing procedure. This function is convenient to use with `define-eval-sexp-fu-flash-command'."
-  (flet ((bounds () (if (functionp bounds) (funcall bounds) bounds)))
+  (cl-flet ((bounds () (if (functionp bounds) (funcall bounds) bounds)))
     (let ((b (bounds)))
       (when b
         (funcall eval-sexp-fu-flash-function b face eface (current-buffer))))))
@@ -214,7 +214,7 @@ Reurn the 4 values; bounds, highlighting, un-highlighting and error flashing pro
             (apply-partially hi lparen rparen face buf)
             (apply-partially uh lparen rparen buf)
             (apply-partially ef lparen rparen eface buf))))
-(defun* esf-flash-paren-surrounded-p ((bounds . buf))
+(cl-defun esf-flash-paren-surrounded-p ((bounds . buf))
   (with-current-buffer buf
     (and (save-excursion
            (goto-char (1- (cdr bounds)))
@@ -223,7 +223,7 @@ Reurn the 4 values; bounds, highlighting, un-highlighting and error flashing pro
            (goto-char (car bounds))
            (looking-at (rx (or (syntax expression-prefix)
                                (syntax open-parenthesis))))))))
-(defun* esf-flash-paren-visible-p ((bounds . _buf))
+(cl-defun esf-flash-paren-visible-p ((bounds . _buf))
   (and (pos-visible-in-window-p (cdr bounds))
        (pos-visible-in-window-p (car bounds))))
 
@@ -273,7 +273,7 @@ See also `eval-sexp-fu-flash'."
   (declare (indent 1))
   `(defadvice ,command (around eval-sexp-fu-flash-region activate)
      (if eval-sexp-fu-flash-mode
-         (multiple-value-bind (bounds hi unhi eflash) ,form
+         (cl-multiple-value-bind (bounds hi unhi eflash) ,form
            (if bounds
                (esf-flash-doit (esf-konstantly ad-do-it) hi unhi eflash)
              ad-do-it))
@@ -296,7 +296,7 @@ See also `eval-sexp-fu-flash'."
 
 (require 'rx)
 (defun esf-forward-inner-sexp0 ()
-  (flet ((poss ()
+  (cl-flet ((poss ()
            (let
                ((prev (save-excursion (backward-sexp) (forward-sexp) (point)))
                 (next (save-excursion (forward-sexp) (backward-sexp) (point))))
@@ -306,7 +306,7 @@ See also `eval-sexp-fu-flash'."
     (cond ((looking-at (rx (or (syntax symbol) (syntax word)
                                (syntax open-parenthesis))))
            (forward-sexp))
-          (t (destructuring-bind (pp pl np nl cp cl) (poss)
+          (t (cl-destructuring-bind (pp pl np nl cp cl) (poss)
                (cond ((and (<=  pp cp) (<= cp np))
                       (cond ((= pl cl) (backward-sexp))
                             ((= nl cl))
@@ -321,7 +321,7 @@ See also `eval-sexp-fu-flash'."
     (scan-error nil)))
 (defun esf-backward-up-inner-list0 (steps)
   (unless steps (setq steps 1))
-  (when (looking-at (rx (syntax open-parenthesis))) (decf steps))
+  (when (looking-at (rx (syntax open-parenthesis))) (cl-decf steps))
   (dotimes (_ steps) (backward-up-list)))
 (defun esf-backward-up-inner-list (steps)
   (condition-case nil

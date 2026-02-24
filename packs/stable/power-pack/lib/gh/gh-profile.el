@@ -96,7 +96,7 @@ to here."
       (car profiles))))
 
 (defun gh-profile-get-remote-profile (remote-url)
-  (loop for (id . props) in gh-profile-alist
+  (cl-loop for (id . props) in gh-profile-alist
         if (string-match (gh-profile-get-remote-regexp id)
                          remote-url)
         return id))

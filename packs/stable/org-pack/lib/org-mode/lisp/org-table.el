@@ -4803,10 +4803,10 @@ to execute outside of tables."
       (org-defkey orgtbl-mode-map key cmd))
 
     ;; Special treatment needed for TAB, RET and DEL
-    (org-defkey orgtbl-mode-map [(return)]
-		(orgtbl-make-binding 'orgtbl-ret 100 [(return)] "\C-m"))
+    (org-defkey orgtbl-mode-map [(cl-return)]
+		(orgtbl-make-binding 'orgtbl-ret 100 [(cl-return)] "\C-m"))
     (org-defkey orgtbl-mode-map "\C-m"
-		(orgtbl-make-binding 'orgtbl-ret 101 "\C-m" [(return)]))
+		(orgtbl-make-binding 'orgtbl-ret 101 "\C-m" [(cl-return)]))
     (org-defkey orgtbl-mode-map [(tab)]
 		(orgtbl-make-binding 'orgtbl-tab 102 [(tab)] "\C-i"))
     (org-defkey orgtbl-mode-map "\C-i"
