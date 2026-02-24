@@ -216,6 +216,57 @@ Packs are expected to reside in `~/.emacs.d/packs/` unless you specify
 them with absolute paths in which case the absolute path with be
 honoured.
 
+### Stable vs Dev Packs
+
+Emacs Live ships with two versions of its packs:
+
+- `packs/stable/` — snapshot of all packs with all libraries included directly as files
+- `packs/dev/` — live version where libraries are managed as git submodules
+
+By default, Emacs Live loads from `packs/stable/`. To switch to dev packs, add the following to your `~/.emacs-live.el`:
+
+```elisp
+(live-use-dev-packs)
+```
+
+To switch back to stable packs, comment it out:
+
+```elisp
+;;(live-use-dev-packs)
+```
+
+### Installing Dev Packs
+
+After cloning the repo, initialise all submodules:
+
+```bash
+git clone git@github.com:overtone/emacs-live.git ~/.emacs.d
+cd ~/.emacs.d
+git submodule update --init --recursive
+```
+
+On first Emacs startup, `auto-compile` will byte-compile all libraries automatically.
+
+### Updating Dev Packs
+
+To update all submodules to their latest versions:
+
+```bash
+cd ~/.emacs.d
+git submodule update --remote --merge
+```
+
+### Syncing Stable Packs from Dev
+
+To update the stable packs snapshot from the current state of dev packs, run:
+
+```bash
+cd ~/.emacs.d/packs
+./update-live-packs
+```
+
+This clears `packs/stable/`, copies all content from `packs/dev/` (dereferencing symlinks), and removes vendor directories and bytecode files.
+
 ### Creating your own Packs
 
 Emacs Live provides a couple of useful helper fns which you can use
