@@ -23,6 +23,8 @@ tramp
 \#*
 tmp/*
 .smex-items
+transient/
 swank/*
 ido.last
 smex-items
+transient/
