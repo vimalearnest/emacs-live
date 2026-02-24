@@ -1,3 +1,8 @@
+;; Increase max-lisp-eval-depth to avoid "excessive-lisp-nesting" errors
+;; triggered by deeply nested macro expansion in magit/ghub/with-editor
+;; (Emacs 30 default of 1601 is insufficient for these large libraries)
+(setq max-lisp-eval-depth 50000)
+
 ;;use file path to ensure buffer name uniqueness
 (require 'uniquify)
 (setq uniquify-buffer-name-style 'forward)
