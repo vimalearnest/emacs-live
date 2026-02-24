@@ -188,3 +188,24 @@
 [submodule "packs/dev/git-pack/vendor/submodules/ghub"]
 	path = packs/dev/git-pack/vendor/submodules/ghub
 	url = git@github.com:magit/ghub.git
+[submodule "packs/dev/clojure-pack/vendor/submodules/company-mode"]
+	path = packs/dev/clojure-pack/vendor/submodules/company-mode
+	url = https://github.com/company-mode/company-mode.git
+[submodule "packs/dev/clojure-pack/vendor/submodules/parseedn"]
+	path = packs/dev/clojure-pack/vendor/submodules/parseedn
+	url = https://github.com/clojure-emacs/parseedn.git
+[submodule "packs/dev/clojure-pack/vendor/submodules/parseclj"]
+	path = packs/dev/clojure-pack/vendor/submodules/parseclj
+	url = https://github.com/clojure-emacs/parseclj.git
+[submodule "packs/dev/clojure-pack/vendor/submodules/sesman"]
+	path = packs/dev/clojure-pack/vendor/submodules/sesman
+	url = https://github.com/vspinu/sesman.git
+[submodule "packs/dev/git-pack/vendor/submodules/cond-let"]
+	path = packs/dev/git-pack/vendor/submodules/cond-let
+	url = https://github.com/tarsius/cond-let.git
+[submodule "packs/dev/git-pack/vendor/submodules/llama"]
+	path = packs/dev/git-pack/vendor/submodules/llama
+	url = https://github.com/tarsius/llama.git
+[submodule "packs/dev/git-pack/vendor/submodules/treepy"]
+	path = packs/dev/git-pack/vendor/submodules/treepy
+	url = https://github.com/volrath/treepy.el.git

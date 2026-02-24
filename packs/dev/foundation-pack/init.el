@@ -1,7 +1,7 @@
 (live-add-pack-lib "swiper")
 (require 'swiper)
 
-(live-add-pack-lib "with-editor")
+(live-add-pack-lib "with-editor/lisp")
 
 (require 'queue)
 (require 'seq)
