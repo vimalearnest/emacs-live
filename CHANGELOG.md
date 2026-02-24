@@ -8,7 +8,6 @@
 * Fix `facemenu-menu` removed in Emacs 30 — wrapped calls with `(when (boundp 'facemenu-menu) ...)` in highlight.el
 * Fix bundled `seq.el` infinite recursion with Emacs 30 built-in — only load bundled seq on Emacs < 25
 * Fix 163 obsolete `cl` package aliases across 35 files — replaced with `cl-` prefixed equivalents
-* Switch to dev packs — all packs now loaded from `packs/dev/` using updated submodules
 * Replace ac-cider/auto-complete with company-mode in clojure-pack — ac-cider is abandoned; cider 1.22+ uses capf natively
 * Add new submodules: company-mode, parseedn, parseclj, sesman, cond-let, llama, treepy, transient
 * Pin magit to v4.5.0 — stable release; update ghub, with-editor, transient load paths for lisp/ subdirectory
