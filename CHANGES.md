@@ -180,6 +180,26 @@ Several updated submodules moved their `.el` files into a `lisp/` subdirectory (
 - `cond-let` (`https://github.com/tarsius/cond-let.git`)
 - `llama` (`https://github.com/tarsius/llama.git`)
 - `treepy` (`https://github.com/volrath/treepy.el.git`)
+- `transient` (`https://github.com/magit/transient.git`) — magit 4.5 requires transient ≥0.12; Emacs 30 ships 0.7.2
+
+**`packs/dev/git-pack/config/ghub-conf.el`**
+- Added `transient` to load-path (loaded before magit)
+
+### Dev Git-Pack / Foundation-Pack: excessive-lisp-nesting fix
+
+**`packs/dev/foundation-pack/config/built-in.el`**
+- Set `max-lisp-eval-depth` to 50000 at startup
+- Emacs 30 default of 1601 is insufficient for the deeply nested call chains in magit/ghub/with-editor even after byte-compilation
+
+**Byte-compiled files (dev git-pack)**:
+- `packs/dev/git-pack/vendor/submodules/transient/lisp/transient.elc`
+- `packs/dev/git-pack/vendor/submodules/magit/lisp/*.elc` (47 files)
+- `packs/dev/git-pack/vendor/submodules/ghub/lisp/*.elc` (4 files)
+- `packs/dev/git-pack/vendor/submodules/cond-let/cond-let.elc`
+- `packs/dev/git-pack/vendor/submodules/llama/llama.elc`
+
+**Byte-compiled files (dev foundation-pack)**:
+- `packs/dev/foundation-pack/vendor/submodules/with-editor/lisp/with-editor.elc`
 
 ---
 
