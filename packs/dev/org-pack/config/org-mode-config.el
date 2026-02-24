@@ -1,4 +1,4 @@
-;; org mode config
+;; org mode config -*- lexical-binding: t; -*-
 
 (live-add-pack-lib "org-mode/lisp")
 (live-add-pack-lib "org-mode/contrib/lisp")

@@ -1,4 +1,4 @@
-;; Org mode pack init file
+;; Org mode pack init file -*- lexical-binding: t; -*-
 ;;
 
 ;; org.el loads org-loaddefs from its own directory (org-mode/lisp/).
