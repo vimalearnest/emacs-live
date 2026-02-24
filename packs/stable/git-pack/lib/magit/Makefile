@@ -3,11 +3,11 @@ include default.mk
 
 ## ###################################################################
 
-.PHONY: lisp \
+.PHONY: lisp docs \
 	install install-lisp install-docs install-info \
 	test test-interactive magit \
 	clean clean-lisp clean-docs clean-archives \
-	stats bump-version melpa-post-release \
+	stats \
 	dist versionlib magit-$(VERSION).tar.gz
 
 all: lisp docs
@@ -19,72 +19,86 @@ help:
 	$(info Build)
 	$(info =====)
 	$(info )
-	$(info make [all]            - compile elisp and documentation)
-	$(info make lisp             - compile elisp)
-	$(info make docs             - generate info manuals)
-	$(info make info             - generate info manuals)
-	$(info make html             - generate html manual files)
-	$(info make html-dir         - generate html manual directories)
-	$(info make pdf              - generate pdf manuals)
+	$(info make [all]            -- Compile elisp and documentation)
+	$(info make lisp             -- Compile elisp)
+	$(info make redo             -- Re-compile elisp)
+	$(info make docs             -- Generate all manual formats)
+	$(info make redo-docs        -- Re-generate all manual formats)
+	$(info make texi             -- Generate texi manuals)
+	$(info make info             -- Generate info manuals)
+	$(info make html             -- Generate html manual files)
+	$(info make html-dir         -- Generate html manual directories)
+	$(info make pdf              -- Generate pdf manuals)
+	$(info make epub             -- Generate epub manuals)
 	$(info )
 	$(info Install)
 	$(info =======)
 	$(info )
-	$(info make install          - install elisp and documentation)
-	$(info make install-lisp     - install elisp)
-	$(info make install-docs     - install all documentation)
-	$(info make install-info     - install info manuals only)
+	$(info make install          -- Install elisp and documentation)
+	$(info make install-lisp     -- Install elisp)
+	$(info make install-docs     -- Install all documentation)
+	$(info make install-info     -- Install info manuals only)
 	$(info )
 	$(info Clean)
 	$(info ====)
 	$(info )
-	$(info make clean            - clean elisp, documentation and tarball)
-	$(info make clean-lisp       - clean elisp)
-	$(info make clean-docs       - clean docs)
-	$(info make clean-archives   - clean release tarball)
-	$(info make clean-all        - clean everything except tracked texi)
-	$(info make clean-stats      - clean stats)
+	$(info make clean            -- Clean elisp, documentation and tarball)
+	$(info make clean-lisp       -- Clean elisp)
+	$(info make clean-docs       -- Clean docs)
+	$(info make clean-archives   -- Clean release tarball)
+	$(info make clean-all        -- Clean everything except tracked texi)
+	$(info make clean-stats      -- Clean stats)
 	$(info )
 	$(info Test)
 	$(info ====)
 	$(info )
-	$(info make test             - run tests)
-	$(info make test-interactive - run tests interactively)
-	$(info make emacs-Q          - run emacs -Q plus Magit)
+	$(info make test             -- Run tests)
+	$(info make test-interactive -- Run tests interactively)
+	$(info make emacs-Q          -- Run emacs -Q plus Magit)
+	$(info make check-declare    -- Check function declarations)
 	$(info )
-	$(info Release Managment)
-	$(info =================)
+	$(info Release Management)
+	$(info ==================)
 	$(info )
-	$(info make texi             - regenerate texi from org)
-	$(info make stats            - regenerate statistics)
-	$(info make authors          - regenerate AUTHORS.md)
-	$(info make publish-stats    - publish statistics)
-	$(info make publish-manuals  - publish snapshot manuals)
-	$(info make release-manuals  - publish release manuals)
-	$(info make dist             - create tarballs)
-	$(info make bump-versions    - bump versions for release)
-	$(info make bump-snapshots   - bump versions after release)
+	$(info make authors          -- Regenerate AUTHORS.md)
+	$(info make publish          -- Publish snapshot manuals)
+	$(info make release          -- Publish release manuals)
+	$(info make dist             -- Create tarballs)
+	$(info make stats            -- Regenerate statistics)
+	$(info make stats-upload     -- Publish statistics)
 	@printf "\n"
 
 ## Build #############################################################
 
 lisp:
 	@$(MAKE) -C lisp lisp
+	@$(MAKE) -C test lisp
+
+redo: clean-lisp lisp
 
 docs:
-	@$(MAKE) -C Documentation all
+	@$(MAKE) -C docs docs
+
+redo-docs:
+	@$(MAKE) -C docs redo-docs
+
+texi:
+	@$(MAKE) -C docs texi
 
 info:
-	@$(MAKE) -C Documentation info
+	@$(MAKE) -C docs info
 
 html:
-	@$(MAKE) -C Documentation html
+	@$(MAKE) -C docs html
 
 html-dir:
-	@$(MAKE) -C Documentation html-dir
+	@$(MAKE) -C docs html-dir
 
 pdf:
-	@$(MAKE) -C Documentation pdf
+	@$(MAKE) -C docs pdf
+
+epub:
+	@$(MAKE) -C docs epub
 
 ## Install ###########################################################
 
@@ -94,43 +108,41 @@ install-lisp: lisp
 	@$(MAKE) -C lisp install
 
 install-docs: docs
-	@$(MAKE) -C Documentation install-docs
+	@$(MAKE) -C docs install-docs
 
 install-info: info
-	@$(MAKE) -C Documentation install-info
+	@$(MAKE) -C docs install-info
 
 ## Test ##############################################################
 
-test:
-	@$(BATCH) --eval "(progn\
-        $$suppress_warnings\
-	(load-file \"t/magit-tests.el\")\
-	(ert-run-tests-batch-and-exit))"
+test: lisp
+	@$(MAKE) -C test test
 
 test-interactive:
-	@$(EMACSBIN) -Q $(LOAD_PATH) --eval "(progn\
-	(load-file \"t/magit-tests.el\")\
-	(ert t))"
+	@$(MAKE) -C test test-interactive
 
 emacs-Q: clean-lisp
-	@$(EMACSBIN) -Q $(LOAD_PATH) --debug-init --eval "(progn\
+	@$(MAKE) -C lisp autoloads
+	@$(EMACS_INTR) --debug-init --eval "(progn\
 	(setq debug-on-error t)\
-	(require 'magit)\
+	(require 'magit-autoloads)\
 	(global-set-key \"\\C-xg\" 'magit-status))"
+
+check-declare:
+	@$(MAKE) -C lisp check-declare
 
 ## Clean #############################################################
 
-clean: clean-lisp clean-docs clean-archives
-	@printf "Cleaning...\n"
-	@$(RM) *.elc $(ELGS) # temporary cleanup kludge
-	@$(RM) Documentation/*.texi~ Documentation/*.info-1 Documentation/*.info-2
-	@$(RM) magit-pkg.el t/magit-tests.elc
+clean: clean-lisp clean-docs clean-test clean-archives
 
 clean-lisp:
 	@$(MAKE) -C lisp clean
 
 clean-docs:
-	@$(MAKE) -C Documentation clean
+	@$(MAKE) -C docs clean
+
+clean-test:
+	@$(MAKE) -C test clean
 
 clean-archives:
 	@$(RM) *.tar.gz *.tar lisp/magit-version.el
@@ -139,111 +151,45 @@ clean-archives:
 clean-all: clean clean-stats
 
 clean-stats:
-	@$(RMDIR) $(statsdir)
+	@$(MAKE) -C docs clean-stats
 
 ## Release management ################################################
 
-texi:
-	@$(MAKE) -C Documentation texi
-
-stats:
-	@$(MAKE) -C Documentation stats
-
 authors:
-	@$(MAKE) -C Documentation authors
+	@$(MAKE) -C docs authors
 
-publish-stats:
-	@$(MAKE) -C Documentation publish-stats
+publish:
+	@$(MAKE) -C docs publish
 
-publish-manuals:
-	@$(MAKE) -C Documentation publish-manuals
+release:
+	@$(MAKE) -C docs release
 
-release-manuals:
-	@$(MAKE) -C Documentation release-manuals
-
-dist: magit-$(VERSION).tar.gz
+dist: clean-docs clean-archives versionlib info magit-$(VERSION).tar.gz
+	@$(RMDIR) magit-$(VERSION)
+	@$(RM) magit-version.el
 
 versionlib:
 	@$(MAKE) -C lisp versionlib
 
-DIST_ROOT_FILES = LICENSE default.mk Makefile README.md
+DIST_ROOT_FILES = LICENSE default.mk Makefile README.md CHANGELOG
 DIST_LISP_FILES = $(addprefix lisp/,$(ELS) magit-version.el Makefile)
-DIST_DOCS_FILES = $(addprefix Documentation/,$(TEXIPAGES) AUTHORS.md Makefile)
-ifneq ("$(wildcard Documentation/RelNotes/$(VERSION).txt)","")
-  DIST_DOCS_FILES += Documentation/RelNotes/$(VERSION).txt
-endif
+DIST_DOCS_FILES = $(addprefix docs/,$(TEXIPAGES) AUTHORS.md Makefile)
 
-magit-$(VERSION).tar.gz: lisp versionlib info
+magit-$(VERSION).tar.gz:
 	@printf "Packing $@\n"
 	@$(MKDIR) magit-$(VERSION)
 	@$(CP) $(DIST_ROOT_FILES) magit-$(VERSION)
 	@$(MKDIR) magit-$(VERSION)/lisp
 	@$(CP) $(DIST_LISP_FILES) magit-$(VERSION)/lisp
-	@$(MKDIR) magit-$(VERSION)/Documentation
-	@$(CP) $(DIST_DOCS_FILES) magit-$(VERSION)/Documentation
+	@$(MKDIR) magit-$(VERSION)/docs
+	@$(CP) $(DIST_DOCS_FILES) magit-$(VERSION)/docs
 	@$(TAR) cz --mtime=./magit-$(VERSION) -f magit-$(VERSION).tar.gz magit-$(VERSION)
-	@$(RMDIR) magit-$(VERSION)
 
-define set_package_requires
-(with-temp-file "lisp/git-commit.el"
-  (insert-file-contents "lisp/git-commit.el")
-  (re-search-forward "^;; Package-Requires: ")
-  (delete-region (point) (line-end-position))
-  (insert (format "%S"
-`((emacs "24.4") ;`
-  (dash ,dash-version)
-  (with-editor ,with-editor-version))))
-(with-temp-file "lisp/magit-pkg.el"
-  (insert (pp-to-string
-`(define-package "magit" "2.12.0" ;`
-   "A Git porcelain inside Emacs."
-   '((emacs "24.4") ;'
-     (async ,async-version)
-     (dash ,dash-version)
-     (ghub ,ghub-version)
-     (git-commit ,git-commit-version)
-     (let-alist ,let-alist-version)
-     (magit-popup ,magit-popup-version)
-     (with-editor ,with-editor-version)))))
-  (goto-char (point-min))
-  (re-search-forward " \"A")
-  (goto-char (match-beginning 0))
-  (insert "\n ")))
-endef
-export set_package_requires
+## Statistics ########################################################
 
-bump-versions: bump-versions-1 texi
-bump-versions-1:
-	@$(BATCH) --eval "(let (\
-        (async-version \"$(ASYNC_VERSION)\")\
-        (dash-version \"$(DASH_VERSION)\")\
-        (ghub-version \"$(GHUB_VERSION)\")\
-        (git-commit-version \"$(GIT_COMMIT_VERSION)\")\
-        (let-alist-version \"$(LET_ALIST_VERSION)\")\
-        (magit-popup-version \"$(MAGIT_POPUP_VERSION)\")\
-        (with-editor-version \"$(WITH_EDITOR_VERSION)\"))\
-        $$set_package_requires)"
+stats:
+	@$(MAKE) -C docs stats
 
-bump-snapshots:
-	@$(BATCH) --eval "(let (\
-        (async-version \"$(ASYNC_MELPA_SNAPSHOT)\")\
-        (dash-version \"$(DASH_MELPA_SNAPSHOT)\")\
-        (ghub-version \"$(GHUB_MELPA_SNAPSHOT)\")\
-        (git-commit-version \"$(GIT_COMMIT_MELPA_SNAPSHOT)\")\
-        (let-alist-version \"$(LET_ALIST_VERSION)\")\
-        (magit-popup-version \"$(MAGIT_POPUP_MELPA_SNAPSHOT)\")\
-        (with-editor-version \"$(WITH_EDITOR_MELPA_SNAPSHOT)\"))\
-        $$set_package_requires)"
-	@git commit -a -m "Reset Package-Requires for Melpa"
+stats-upload:
+	@$(MAKE) -C docs stats-upload
 
-define suppress_warnings
-(fset 'original-message (symbol-function 'message))
-(fset 'message ;'
-      (lambda (f &rest a)
-        (unless (or (equal f "Wrote %s")
-                    (equal f "pcase-memoize: equal first branch, yet different")
-                    (and (equal f "Warning: Unknown defun property `%S' in %S")
-                         (memq (car a) '(pure side-effect-free interactive-only))))
-          (apply 'original-message f a))))
-endef
-export suppress_warnings

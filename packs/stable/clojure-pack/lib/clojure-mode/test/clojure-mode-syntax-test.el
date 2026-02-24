@@ -1,6 +1,6 @@
 ;;; clojure-mode-syntax-test.el --- Clojure Mode: syntax related tests  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2018 Bozhidar Batsov <bozhidar@batsov.com>
+;; Copyright (C) 2015-2026 Bozhidar Batsov <bozhidar@batsov.dev>
 
 ;; This file is not part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -24,128 +24,170 @@
 ;;; Code:
 
 (require 'clojure-mode)
-(require 'ert)
+(require 'buttercup)
+(require 'test-helper "test/utils/test-helper")
 
 (defun non-func (form-a form-b)
-  (with-temp-buffer
-    (clojure-mode)
-    (insert form-a)
+  (with-clojure-buffer form-a
     (save-excursion (insert form-b))
     (clojure--not-function-form-p)))
 
-(ert-deftest non-function-form ()
-  (dolist (form '(("#?@ " "(c d)")
-                  ("#?@" "(c d)")
-                  ("#? " "(c d)")
-                  ("#?" "(c d)")
-                  ("" "[asda]")
-                  ("" "{a b}")
-                  ("#" "{a b}")
-                  ("" "(~)")))
-    (should (apply #'non-func form)))
-  (dolist (form '("(c d)"
-                  "(.c d)"
-                  "(:c d)"
-                  "(c/a d)"
-                  "(.c/a d)"
-                  "(:c/a d)"
-                  "(c/a)"
-                  "(:c/a)"
-                  "(.c/a)"))
-    (should-not (non-func "" form))
-    (should-not (non-func "^hint" form))
-    (should-not (non-func "#macro" form))
-    (should-not (non-func "^hint " form))
-    (should-not (non-func "#macro " form))))
+(describe "clojure--not-function-form-p"
+  (it "should handle forms that are not funcions"
+    (dolist (form '(("#?@ " "(c d)")
+                    ("#?@" "(c d)")
+                    ("#? " "(c d)")
+                    ("#?" "(c d)")
+                    ("" "[asda]")
+                    ("" "{a b}")
+                    ("#" "{a b}")
+                    ("" "(~)")))
+      (expect (apply #'non-func form))))
 
-(ert-deftest clojure-syntax-prefixed-symbols ()
-  (dolist (form '(("#?@aaa" . "aaa")
-                  ("#?aaa"  . "?aaa")
-                  ("#aaa"   . "aaa")
-                  ("'aaa"   . "aaa")))
-    (with-temp-buffer
-      (clojure-mode)
-      (insert (car form))
-      (equal (symbol-name (symbol-at-point)) (cdr form)))))
+  (it "should handle forms that are funcions"
+    (dolist (form '("(c d)"
+                    "(.c d)"
+                    "(:c d)"
+                    "(c/a d)"
+                    "(.c/a d)"
+                    "(:c/a d)"
+                    "(c/a)"
+                    "(:c/a)"
+                    "(.c/a)"))
+      (expect (non-func "" form) :to-be nil)
+      (expect (non-func "^hint" form) :to-be nil)
+      (expect (non-func "#macro" form) :to-be nil)
+      (expect (non-func "^hint " form) :to-be nil)
+      (expect (non-func "#macro " form) :to-be nil))))
 
+(describe "clojure-match-next-def"
+  (let ((some-sexp "\n(list [1 2 3])"))
+    (it "handles vars with metadata"
+      (dolist (form '("(def ^Integer a 1)"
+                      "(def ^:a a 1)"
+                      "(def ^::a a 1)"
+                      "(def ^::a/b a 1)"
+                      "(def ^{:macro true} a 1)"))
+        (with-clojure-buffer (concat form some-sexp)
+          (end-of-buffer)
+          (clojure-match-next-def)
+          (expect (looking-at "(def")))))
 
-(ert-deftest clojure-syntax-skip-prefixes ()
-  (dolist (form '("#?@aaa" "#?aaa" "#aaa" "'aaa"))
-    (with-temp-buffer
-      (clojure-mode)
-      (insert form)
-      (backward-word)
-      (backward-prefix-chars)
-      (should (bobp)))))
+    (it "handles vars without metadata"
+      (with-clojure-buffer (concat "(def a 1)" some-sexp)
+        (end-of-buffer)
+        (clojure-match-next-def)
+        (expect (looking-at "(def"))))
 
+    (it "handles invalid def forms"
+      (dolist (form '("(def ^Integer)"
+                      "(def)"
+                      "(def ^{:macro})"
+                      "(def ^{:macro true})"
+                      "(def ^{:macro true} foo)"
+                      "(def ^{:macro} foo)"))
+        (with-clojure-buffer (concat form some-sexp)
+          (end-of-buffer)
+          (clojure-match-next-def)
+          (expect (looking-at "(def"))))))
 
-(ert-deftest clojure-allowed-collection-tags ()
-  (dolist (tag '("#::ns" "#:ns" "#ns" "#:f.q/ns" "#f.q/ns" "#::"))
-    (with-temp-buffer
-      (clojure-mode)
-      (insert tag)
-      (should-not (clojure-no-space-after-tag nil ?{))))
-  (dolist (tag '("#$:" "#/f" "#:/f" "#::f.q/ns" "::ns" "::" "#f:ns"))
-    (with-temp-buffer
-      (clojure-mode)
-      (insert tag)
-      (should (clojure-no-space-after-tag nil ?{)))))
+  (it "captures var name"
+    (dolist (form '("(def some-name 1)"
+                    "(def some-name)"
+                    "(def ^:private some-name 2)"
+                    "(def ^{:private true} some-name 3)"))
+      (with-clojure-buffer form
+        (end-of-buffer)
+        (clojure-match-next-def)
+        (cl-destructuring-bind (name-beg name-end) (match-data)
+          (expect (string= "some-name" (buffer-substring name-beg name-end)))))))
 
+  (it "captures var name with dispatch value for defmethod"
+    (dolist (form '("(defmethod some-name :key [a])"
+                    "(defmethod ^:meta some-name :key [a])"
+                    "(defmethod ^{:meta true} some-name :key [a])"
+                    "(defmethod some-name :key)"))
+      (with-clojure-buffer form
+        (end-of-buffer)
+        (clojure-match-next-def)
+        (cl-destructuring-bind (name-beg name-end) (match-data)
+          (expect (string= "some-name :key" (buffer-substring name-beg name-end))))))))
 
-(def-refactor-test test-paragraph-fill-within-comments
-    "
+(describe "clojure syntax"
+  (it "handles prefixed symbols"
+    (dolist (form '(("#?@aaa" . "aaa")
+                    ("#?aaa"  . "?aaa")
+                    ("#aaa"   . "aaa")
+                    ("'aaa"   . "aaa")))
+      (with-clojure-buffer (car form)
+        ;; FIXME: Shouldn't there be an `expect' here?
+        (equal (symbol-name (symbol-at-point)) (cdr form)))))
+
+  (it "skips prefixes"
+    (dolist (form '("#?@aaa" "#?aaa" "#aaa" "'aaa"))
+      (with-clojure-buffer form
+        (backward-word)
+        (backward-prefix-chars)
+        (expect (bobp))))))
+
+(describe "fill-paragraph"
+
+  (it "should work within comments"
+    (with-clojure-buffer "
 ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
 ;; ut labore et dolore magna aliqua."
-    "
+      (goto-char (point-min))
+      (let ((fill-column 80))
+        (fill-paragraph))
+      (expect (buffer-string) :to-equal "
 ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-;; tempor incididunt ut labore et dolore magna aliqua."
-  (goto-char (point-min))
-  (let ((fill-column 80))
-    (fill-paragraph)))
+;; tempor incididunt ut labore et dolore magna aliqua.")))
 
-(def-refactor-test test-paragraph-fill-within-inner-comments
-    "
+  (it "should work within inner comments"
+    (with-clojure-buffer "
 (let [a 1]
   ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
   ;; ut labore et dolore
   ;; magna aliqua.
   )"
-    "
+      (goto-char (point-min))
+      (forward-line 2)
+      (let ((fill-column 80))
+        (fill-paragraph))
+      (expect (buffer-string) :to-equal "
 (let [a 1]
   ;; Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
   ;; tempor incididunt ut labore et dolore magna aliqua.
-  )"
-  (goto-char (point-min))
-  (forward-line 2)
-  (let ((fill-column 80))
-    (fill-paragraph)))
+  )")))
 
 (when (fboundp 'font-lock-ensure)
-  (def-refactor-test test-paragraph-fill-not-altering-surrounding-code
-      "(def my-example-variable
+  (it "should not alter surrounding code"
+    (with-clojure-buffer "(def my-example-variable
   \"It has a very long docstring. So long, in fact, that it wraps onto multiple lines! This is to demonstrate what happens when the docstring wraps over three lines.\"
   nil)"
-      "(def my-example-variable
+      (font-lock-ensure)
+      (goto-char 40)
+      (let ((clojure-docstring-fill-column 80)
+            (fill-column 80))
+        (fill-paragraph))
+      (expect (buffer-string) :to-equal "(def my-example-variable
   \"It has a very long docstring. So long, in fact, that it wraps onto multiple
   lines! This is to demonstrate what happens when the docstring wraps over three
   lines.\"
-  nil)"
-    (font-lock-ensure)
-    (goto-char 40)
-    (let ((clojure-docstring-fill-column 80)
-          (fill-column 80))
-      (fill-paragraph)))
+  nil)")))))
 
-  (ert-deftest test-clojure-in-docstring-p ()
-    (with-temp-buffer
-      (insert  "(def my-example-variable
+(when (fboundp 'font-lock-ensure)
+  (describe "clojure-in-docstring-p"
+    (it "should handle def with docstring"
+      (with-clojure-buffer "(def my-example-variable
   \"Doc here and `doc-here`\"
-  nil)")
-      (clojure-mode)
-      (font-lock-ensure)
-      (goto-char 32)
-      (should (clojure-in-docstring-p))
-      (goto-char 46)
-      (should (clojure-in-docstring-p)))))
+  nil)"
+        (font-lock-ensure)
+        (goto-char 32)
+        (expect (clojure-in-docstring-p))
+        (goto-char 46)
+        (expect (clojure-in-docstring-p))))))
 
 (provide 'clojure-mode-syntax-test)
+
+;;; clojure-mode-syntax-test.el ends here

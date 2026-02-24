@@ -180,8 +180,8 @@ appropriate modes from fetched gist files (based on filenames)."
          (resp (gh-gist-new api gist)))
     (gh-url-add-response-callback
      resp
-     (lexical-let ((profile (oref api :profile))
-                   (cb callback))
+     (let ((profile (oref api :profile))
+           (cb callback))
        (lambda (gist)
          (let ((gh-profile-current-profile profile))
            (funcall (or cb 'gist-created-callback) gist)))))))
@@ -320,15 +320,15 @@ Copies the URL into the kill ring."
       (let ((resp (gh-gist-list api username)))
         (gh-url-add-response-callback
          resp
-         (lexical-let ((buffer bufname))
+         (let ((buffer bufname))
            (lambda (gists)
              (with-current-buffer (get-buffer-create buffer)
                (setq gist-list-buffer-user username)
                (gist-lists-retrieved-callback gists background)))))
         (gh-url-add-response-callback
          resp
-         (lexical-let ((profile (oref api :profile))
-                       (buffer bufname))
+         (let ((profile (oref api :profile))
+               (buffer bufname))
            (lambda (&rest args)
              (with-current-buffer buffer
                (setq gh-profile-current-profile profile)))))))))
@@ -584,7 +584,7 @@ put it into `kill-ring'."
          (resp (gh-gist-list-starred api)))
     (gh-url-add-response-callback
      resp
-     (lexical-let ((buffer "*starred-gists*"))
+     (let ((buffer "*starred-gists*"))
        (lambda (gists)
          (with-current-buffer (get-buffer-create buffer)
            (gist-list-render gists background)))))))
@@ -669,12 +669,12 @@ put it into `kill-ring'."
          (without (cadr lsts)))
     (push (apply-partially (lambda (with without g)
                              (and
-                              (every (lambda (tag)
+                              (cl-every (lambda (tag)
                                        (string-match-p
                                         (format "#%s\\>" tag)
                                         (oref g :description)))
                                      with)
-                              (not (some (lambda (tag)
+                              (not (cl-some (lambda (tag)
                                            (string-match-p
                                             (format "#%s\\>" tag)
                                             (oref g :description)))
@@ -688,7 +688,7 @@ put it into `kill-ring'."
       (delete nil
               (mapcar
                (lambda (g)
-                 (when (every #'identity
+                 (when (cl-every #'identity
                               (mapcar (lambda (f) (funcall f g)) gist-list-limits))
                    g))
                gists))

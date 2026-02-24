@@ -1,6 +1,6 @@
-;;; test-ob-octave.el --- tests for ob-octave.el
+;;; test-ob-octave.el --- tests for ob-octave.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2010-2014 Sergey Litvinov
+;; Copyright (c) 2010-2014, 2019 Sergey Litvinov
 ;; Authors: Sergey Litvinov
 
 ;; This file is not part of GNU Emacs.
@@ -16,11 +16,13 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+(require 'ob-core)
 
 (org-test-for-executable "octave")
 (unless (featurep 'ob-octave)
-  (signal 'missing-test-dependency "Support for Octave code blocks"))
+  (signal 'missing-test-dependency '("Support for Octave code blocks")))
 
 (ert-deftest ob-octave/input-none ()
   "Number output"
@@ -63,3 +65,74 @@
   (org-test-at-id "cc2d82bb-2ac0-45be-a0c8-d1463b86a3ba"
     (org-babel-next-src-block 5)
     (should (equal nil (org-babel-execute-src-block)))))
+
+(ert-deftest ob-octave/graphics-file ()
+  "Graphics file.  Test that link is correctly inserted and graphics file is created (and not empty).  Clean-up side-effects."
+  ;; In case a prior test left the Error Output buffer hanging around.
+  (when (get-buffer org-babel-error-buffer-name)
+    (kill-buffer org-babel-error-buffer-name))
+  (let ((file (make-temp-file "test-ob-octave-" nil ".png")))
+    (unwind-protect
+        (org-test-with-temp-text
+	    (format "#+begin_src octave :results file graphics :file %s
+sombrero;
+#+end_src"
+		    file)
+          (org-babel-execute-src-block)
+          (should (search-forward (format "[[file:%s]]" file) nil nil))
+          (should (file-readable-p file)))
+      ;; clean-up
+      (delete-file file)
+      (when (get-buffer org-babel-error-buffer-name)
+        (kill-buffer org-babel-error-buffer-name)))))
+
+(ert-deftest ob-octave/graphics-file-session ()
+  "Graphics file in a session.  Test that session is started in *Inferior Octave* buffer, link is correctly inserted and graphics file is created (and not empty).  Clean-up side-effects."
+  (let ((file (make-temp-file "test-ob-octave-" nil ".png")))
+    (unwind-protect
+        (org-test-with-temp-text
+	    (format "#+begin_src octave :session :results file graphics :file %s
+crash_dumps_octave_core(0);
+sombrero;
+#+end_src"
+		    file)
+          (org-babel-execute-src-block)
+          (should (get-buffer "*Inferior Octave*"))
+          (should (search-forward (format "[[file:%s]]" file) nil nil))
+          (should (file-readable-p file)))
+      ;; clean-up
+      (delete-file file)
+      (let (kill-buffer-query-functions kill-buffer-hook)
+        (kill-buffer "*Inferior Octave*"))
+      (when (get-buffer org-babel-error-buffer-name)
+        (kill-buffer org-babel-error-buffer-name)))))
+
+(ert-deftest ob-octave/graphics-file-space ()
+  "Graphics file with a space in filename.  Test that session is started in *Inferior Octave* buffer, link is correctly inserted and graphics file is created (and not empty).  Clean-up side-effects."
+  (let ((file (make-temp-file "test ob octave-" nil ".png")))
+    (unwind-protect
+        (org-test-with-temp-text
+	    (format "#+begin_src octave :results file graphics :file %s
+sombrero;
+#+end_src"
+		    file)
+          (org-babel-execute-src-block)
+          (should (search-forward (format "[[file:%s]]" file) nil nil))
+          (should (file-readable-p file)))
+      ;; clean-up
+      (delete-file file)
+      (when (get-buffer org-babel-error-buffer-name)
+        (kill-buffer org-babel-error-buffer-name)))))
+
+(ert-deftest ob-octave/session-multiline ()
+  "Test multiline session input."
+  (dotimes (_ 3)
+    (org-test-with-temp-text
+        "#+begin_src octave :session oct2 :results output
+  x = 1;
+  x = 1;
+  x = 1
+#+end_src"
+      (should (equal "x = 1" (org-babel-execute-src-block))))))
+
+(provide 'test-ob-octave)

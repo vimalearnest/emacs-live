@@ -1,4 +1,4 @@
-;;; gh-comments.el --- support for comment-enabled APIs
+;;; gh-comments.el --- support for comment-enabled APIs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014-2015  Yann Hodique
 
@@ -26,16 +26,11 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'gh-common)
 (require 'gh-api)
 
-;;;###autoload
 (defclass gh-comments-api-mixin ()
   ((comment-cls :allocation :class :initform gh-comment))
   :abstract t)

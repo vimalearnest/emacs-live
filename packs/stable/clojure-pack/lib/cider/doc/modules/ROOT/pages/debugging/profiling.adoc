@@ -1,0 +1,75 @@
+= Profiling
+
+CIDER has a simple built-in profiler that can help you to quickly measure the running
+time of individual functions. It is similar to wrapping your functions with
+`time` macro, except it records every timing and displays a summarized result.
+
+NOTE: Profiling is different from benchmarking. Benchmarking more accurately
+tells you how long the code executes. If you need accurate timing results, use a
+serious benchmarking library like
+https://github.com/hugoduncan/criterium[Criterium]. If you need to understand
+where most of the time is spent, use a serious profiler like
+https://github.com/clojure-goes-fast/clj-async-profiler[clj-async-profiler].
+
+NOTE: The profiler doesn't support ClojureScript.
+
+== Usage
+
+To start using CIDER profiler, choose the vars you want to profile and invoke
+`M-x cider-profile-toggle` (kbd:[C-c C-= t]). By defaults it operates on the
+symbol at point, but will prompt for a var if there's nothing under the point.
+You can also mark all functions in the namespace for profiling via
+`cider-profile-ns-toggle` (kbd:[C-c C-= n]).
+
+Then, evaluate some code making use of those vars and their invocations will be
+automatically profiled.
+
+You can display a report of the collected profiling data with `M-x
+cider-profile-summary` (kbd:[C-c C-= s]).
+
+== Understanding the Report Format
+
+Profiling reports are rendered by xref:debugging/inspector.adoc[CIDER
+inspector]. A typical profiling report looks like this:
+
+....
+| # |           :name |   :n |  :mean |    :std |   :sum |   :min |   :max |   :med |   :samples |
+|---+-----------------+------+--------+---------+--------+--------+--------+--------+------------|
+| 0 | #'sample-ns/bar | 1000 |   3 us |  ±14 us |   3 ms | 791 ns | 384 us |   2 us |  [791 ...] |
+| 1 | #'sample-ns/baz | 1000 | 307 ns | ±710 ns | 307 us |  84 ns |  22 us | 250 ns |   [84 ...] |
+| 2 | #'sample-ns/foo | 1000 |   7 us |  ±18 us |   7 ms |   3 us | 495 us |   5 us | [2584 ...] |
+| 3 | #'sample-ns/qux | 1000 |   8 us |  ±20 us |   8 ms |   3 us | 543 us |   5 us | [3125 ...] |
+....
+
+Let's demystify all the column names:
+
+* `:n`: Number of samples.
+* `:mean`: Average time spent in fn.
+* `:std`: Standard deviation.
+* `:sum`: Aggregate time spent in fn.
+* `:min`: Minimal recorded time for fn.
+* `:max`: Maximal recorded time for fn.
+* `:med`: Median i.e. fiftieth percentile.
+* `:samples`: A list of all timing samples. You can click it to see the full list in the inspector.
+
+== Keybindings
+
+|===
+| Command | Keyboard shortcut | Description
+
+| `cider-profile-toggle`
+| kbd:[C-c C-= t]
+| Toggle profiling for var. Defaults to the var at point.
+
+| `cider-profile-ns-toggle`
+| kbd:[C-c C-= n]
+| Toggle profiling for the current ns.
+
+| `cider-profile-summary`
+| kbd:[C-c C-= s]
+| Display the profiling summary for all vars.
+
+| `cider-profile-clear`
+| kbd:[C-c C-= c]
+| Clear profiling data.
+|===

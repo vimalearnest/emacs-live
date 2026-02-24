@@ -1,4 +1,4 @@
-;;; gh-common.el --- common objects for gh.el
+;;; gh-common.el --- common objects for gh.el -*- lexical-binding: t; no-byte-compile: t-*-
 
 ;; Copyright (C) 2011  Yann Hodique
 
@@ -26,10 +26,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 (require 'marshal)
 
@@ -93,58 +89,53 @@ sanitize API calls that need to handle potentially dirty data."
 
 ;;; Base classes for common objects
 
-;;;###autoload
 (defun gh-marshal-default-spec (slot)
   (let ((slot-name (symbol-name slot)))
     (list (cons 'alist
                 (intern (replace-regexp-in-string "-" "_" slot-name))))))
 
-;;;###autoload
 (defmacro gh-defclass (name superclass slots &rest options-and-doc)
   `(marshal-defclass ,name ,superclass ,slots ,@options-and-doc
                      :marshal-default-spec gh-marshal-default-spec))
 
-;;;###autoload
 (gh-defclass gh-object ()
   ())
 
-(cl-defmethod gh-object-read ((obj gh-object) data)
-  (when data
-    (gh-object-read-into obj data))
-  obj)
-
-(cl-defmethod gh-object-read ((obj (subclass gh-object)) data)
-  (let ((target (make-instance obj)))
+(cl-defmethod gh-object-read ((cls (subclass gh-object)) data)
+  (let ((target (make-instance cls)))
     (when data
       (gh-object-read-into target data))
     target))
 
+(cl-defmethod gh-object-read ((obj gh-object) data)
+  (when data
+    (gh-object-read-into obj data)))
+
 (cl-defmethod gh-object-reader ((obj gh-object))
   (apply-partially 'gh-object-read obj))
 
-(cl-defmethod gh-object-reader ((obj (subclass gh-object)))
-  (apply-partially 'gh-object-read obj))
+(cl-defmethod gh-object-reader ((cls (subclass gh-object)))
+  (apply-partially 'gh-object-read cls))
 
 (cl-defmethod gh-object-list-read ((obj gh-object) data)
   (mapcar (gh-object-reader obj) data))
 
-(cl-defmethod gh-object-list-read ((obj (subclass gh-object)) data)
-  (mapcar (gh-object-reader obj) data))
+(cl-defmethod gh-object-list-read ((cls (subclass gh-object)) data)
+  (mapcar (gh-object-reader cls) data))
 
 (cl-defmethod gh-object-list-reader ((obj gh-object))
   (apply-partially 'gh-object-list-read obj))
 
-(cl-defmethod gh-object-list-reader ((obj (subclass gh-object)))
-  (apply-partially 'gh-object-list-read obj))
+(cl-defmethod gh-object-list-reader ((cls (subclass gh-object)))
+  (apply-partially 'gh-object-list-read cls))
 
 (cl-defmethod gh-object-read-into ((obj gh-object) data)
   (unmarshal obj data 'alist))
 
 (cl-defmethod slot-unbound ((obj gh-object) cls slot-name fn)
   (if (eq fn 'oref) nil
-      (call-next-method)))
+      (cl-call-next-method)))
 
-;;;###autoload
 (gh-defclass gh-ref-object (gh-object)
   ((id :initarg :id)
    (url :initarg :url)
@@ -161,13 +152,11 @@ sanitize API calls that need to handle potentially dirty data."
   (if (stringp obj) obj
     (error "illegal input for `gh-ref-object-base'")))
 
-;;;###autoload
 (gh-defclass gh-user (gh-ref-object)
   ((login :initarg :login)
    (gravatar-url :initarg :gravatar-url))
   "Github user object")
 
-;;;###autoload
 (gh-defclass gh-comment (gh-ref-object)
   ((body :initarg :body)
    (user :initarg :user :initform nil :marshal-type gh-user)

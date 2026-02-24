@@ -1,6 +1,6 @@
-;; seq.el is bundled for Emacs < 25. On Emacs 25+, seq is built-in.
-;; Loading the old bundled version on Emacs 30+ causes infinite recursion
-;; between seq-subseq and cl-subseq.
+;; Only load the bundled seq library on Emacs < 25.
+;; Emacs 25+ ships seq built-in, and the old bundled seq-subseq calls cl-subseq
+;; which in Emacs 30 calls seq-subseq back, causing infinite recursion.
 (when (version< emacs-version "25")
   (live-add-pack-lib "seq")
   (require 'seq)

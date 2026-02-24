@@ -1,4 +1,4 @@
-;;; gh-profile.el --- profile support for gh.el
+;;; gh-profile.el --- profile support for gh.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2013  Yann Hodique
 
@@ -25,9 +25,6 @@
 ;;
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'cl))
 
 (require 'rx)
 (require 'url-parse)
@@ -92,14 +89,14 @@ to here."
 (defun gh-profile-completing-read ()
   (let ((profiles (mapcar #'car gh-profile-alist)))
     (if (> (length profiles) 1)
-        (completing-read "Github profile: " profiles nil t nil nil (first profiles))
+        (completing-read "Github profile: " profiles nil t nil nil (cl-first profiles))
       (car profiles))))
 
 (defun gh-profile-get-remote-profile (remote-url)
   (cl-loop for (id . props) in gh-profile-alist
-        if (string-match (gh-profile-get-remote-regexp id)
-                         remote-url)
-        return id))
+           if (string-match (gh-profile-get-remote-regexp id)
+                            remote-url)
+           return id))
 
 (provide 'gh-profile)
 ;;; gh-profile.el ends here

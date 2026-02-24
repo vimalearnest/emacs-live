@@ -1,4 +1,4 @@
-;;; tests/externs.el --- Some tests for js2-mode.
+;;; tests/externs.el --- Some tests for js2-mode.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2009, 2011-2014, 2016  Free Software Foundation, Inc.
 
@@ -116,7 +116,7 @@
                    (member "getRow" found-externs)
                    (member "Proxy" found-externs))))))
 
-(ert-deftest js2-finds-jslint-globals-with-newline ()
+(ert-deftest js2-finds-jslint-declaration-externs-with-newline ()
   (with-temp-buffer
     (insert "/*jslint\nbrowser: true,\nnode:\ntrue\n, devel:\ntrue\n*/")
     (js2-mode)

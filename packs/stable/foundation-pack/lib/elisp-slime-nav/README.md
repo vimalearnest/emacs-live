@@ -23,7 +23,7 @@ C-d</kbd> by default.
 Ensure `elisp-slime-nav.el` is in a directory on your load-path, and
 add the following to your `~/.emacs` or `~/.emacs.d/init.el`:
 
-``` lisp
+```elisp
 (require 'elisp-slime-nav)
 (dolist (hook '(emacs-lisp-mode-hook ielm-mode-hook))
   (add-hook hook 'elisp-slime-nav-mode))
@@ -39,7 +39,7 @@ If you're an Emacs 24 user or you have a recent version of
 Enable `elisp-slime-nav` in `emacs-lisp-mode` and `ielm` by adding
 code such as the following to your emacs startup file:
 
-``` lisp
+```elisp
 (dolist (hook '(emacs-lisp-mode-hook ielm-mode-hook))
   (add-hook hook 'turn-on-elisp-slime-nav-mode))
 ```
@@ -57,9 +57,9 @@ readers might find of interest.
 
 <hr>
 
-[![](http://api.coderwall.com/purcell/endorsecount.png)](http://coderwall.com/purcell)
+[💝 Support this project and my other Open Source work via Patreon](https://www.patreon.com/sanityinc)
 
-[![](http://www.linkedin.com/img/webpromo/btn_liprofile_blue_80x15.png)](http://uk.linkedin.com/in/stevepurcell)
+[💼 LinkedIn profile](https://uk.linkedin.com/in/stevepurcell)
 
-[Steve Purcell's blog](http://www.sanityinc.com/) // [@sanityinc on Twitter](https://twitter.com/sanityinc)
+[✍ sanityinc.com](http://www.sanityinc.com/)
 

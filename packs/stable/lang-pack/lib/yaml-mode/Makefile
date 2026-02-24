@@ -1,4 +1,4 @@
-VERSION=0.0.13
+VERSION=0.0.15
 EMACS = emacs
 PREFIX = /usr/local
 INSTALLLIBDIR = $(PREFIX)/share/emacs/site-lisp
@@ -25,6 +25,12 @@ tardist:
 	tar zcvf yaml-mode-$(VERSION).tar.gz yaml-mode-$(VERSION)
 	rm -fr yaml-mode-$(VERSION)
 
+.PHONY: test
+test:
+	$(EMACS) -Q -batch -L . \
+		-l test/yaml-mode-test.el \
+		-f ert-run-tests-batch-and-exit
+
+.PHONY: clean
 clean:
 	rm -fr \#*\# *.elc *~ *.tar.gz
-

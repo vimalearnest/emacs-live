@@ -111,7 +111,7 @@ minibuffer (even if not active) last."
 
 (defmacro window-number-define-keys (mode-map prefix)
   `(progn
-     ,@(cl-loop for number from 1 to 10 collect
+     ,@(loop for number from 1 to 10 collect
              `(define-key ,mode-map
                 (kbd ,(concat prefix (number-to-string
                                       (if (>= number 10) 0 number))))

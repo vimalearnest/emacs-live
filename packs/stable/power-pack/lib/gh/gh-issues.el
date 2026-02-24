@@ -1,4 +1,4 @@
-;;; gh-issues.el --- issues api for github
+;;; gh-issues.el --- issues api for github -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014-2015  Yann Hodique
 ;; Copyright (C) 2014 Travis Thieman
@@ -35,10 +35,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'gh-api)
@@ -48,7 +44,6 @@
 
 (require 'gh-repos)
 
-;;;###autoload
 (defclass gh-issues-api (gh-api-v3 gh-comments-api-mixin)
   ((issue-cls :allocation :class :initform gh-issues-issue)
    (milestone-cls :allocation :class :initform gh-issues-milestone)
@@ -56,7 +51,6 @@
    (comment-cls :allocation :class :initform gh-issues-comment))
   "Github Issues api")
 
-;;;###autoload
 (gh-defclass gh-issues-issue (gh-ref-object)
   ((number :initarg :number)
    (state :initarg :state)
@@ -74,13 +68,11 @@
    (updated-at :initarg :updated-at))
   "issues request")
 
-;;;###autoload
 (gh-defclass gh-issues-pull-request (gh-object)
   ((html-url :initarg :html-url)
    (diff-url :initarg :diff-url)
    (patch-url :initarg :patch-url)))
 
-;;;###autoload
 (gh-defclass gh-issues-label (gh-ref-object)
   ((name :initarg :name)
    (color :initarg :color)))
@@ -89,7 +81,6 @@
   `(("name" . ,(oref label :name))
     ("color" . ,(oref label :color))))
 
-;;;###autoload
 (gh-defclass gh-issues-milestone (gh-ref-object)
   ((number :initarg :number)
    (state :initarg :state)
@@ -102,7 +93,6 @@
    (due-on :initarg :due-on))
   "github milestone")
 
-;;;###autoload
 (gh-defclass gh-issues-comment (gh-comment)
   ())
 

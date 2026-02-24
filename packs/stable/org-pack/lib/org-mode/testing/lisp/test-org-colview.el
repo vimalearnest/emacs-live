@@ -1,6 +1,6 @@
 ;;; test-org-colview.el --- Tests for org-colview.el -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016  Nicolas Goaziou
+;; Copyright (C) 2016, 2019  Nicolas Goaziou
 
 ;; Author: Nicolas Goaziou <mail@nicolasgoaziou.fr>
 
@@ -15,13 +15,104 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
 ;;; Column view
 
 (require 'cl-lib)
+(require 'org-colview)
+(require 'org-duration)
+(require 'org-inlinetask)
+
+(ert-deftest test-org-colview/uncompile-format ()
+  "Test `org-columns-uncompile-format' specifications."
+  ;; With minimum data, one element
+  (should
+   (equal "%ITEM"
+          (org-columns-uncompile-format '(("ITEM" "ITEM" nil nil nil)))))
+  ;; With minimum data, two element
+  (should
+   (equal "%ITEM %TODO"
+          (org-columns-uncompile-format
+           `(("ITEM" "ITEM" nil nil nil) ("TODO" "TODO" nil nil nil)))))
+  ;; Read width
+  (should
+   (equal "%10ITEM"
+          (org-columns-uncompile-format `(("ITEM" "ITEM" 10 nil nil)))))
+  ;; Read title
+  (should
+   (equal "%ITEM(some title)"
+          (org-columns-uncompile-format `(("ITEM" "some title" nil nil nil)))))
+  ;; Read operator
+  (should
+   (equal "%ITEM{+}"
+          (org-columns-uncompile-format `(("ITEM" "ITEM" nil "+" nil)))))
+  ;; Read operator printf
+  (should
+   (equal "%ITEM{+;%.1f}"
+          (org-columns-uncompile-format  `(("ITEM" "ITEM" nil "+" "%.1f"))))))
+
+(ert-deftest test-org-colview/compile-format ()
+  "Test `org-columns-compile-format' specifications."
+  ;; With minimum data, one element
+  (should
+   (equal `(("ITEM" "ITEM" nil nil nil))
+          (org-columns-compile-format
+           "%ITEM")))
+  ;; With minimum data, two element
+  (should
+   (equal `(("ITEM" "ITEM" nil nil nil) ("TODO" "TODO" nil nil nil))
+          (org-columns-compile-format
+           "%ITEM %TODO")))
+  ;; Read width
+  (should
+   (equal `(("ITEM" "ITEM" 10 nil nil))
+          (org-columns-compile-format
+           "%10ITEM")))
+  ;; Upcase property name
+  (should
+   (equal `(("ITEM" "item" nil nil nil))
+          (org-columns-compile-format
+           "%item")))
+  ;; Read title
+  (should
+   (equal `(("ITEM" "some title" nil nil nil))
+          (org-columns-compile-format
+           "%ITEM(some title)")))
+  ;; Read operator
+  (should
+   (equal `(("ITEM" "ITEM" nil "+" nil))
+          (org-columns-compile-format
+           "%ITEM{+}")))
+  ;; Read operator printf
+  (should
+   (equal `(("ITEM" "ITEM" nil "+" "%.1f"))
+          (org-columns-compile-format
+           "%ITEM{+;%.1f}")))
+  (should
+   ;; Bug https://list.orgmode.org/orgmode/877ccczt83.fsf@gmail.com/
+   (equal '(("ITEM" "ITEM" nil "X" nil))
+          (org-columns-compile-format
+           "%ITEM(){X}"))))
+
+(ert-deftest test-org-colview/substring-below-width ()
+  "Test `org-columns--truncate-below-width'."
+  (cl-flet ((check (string width expect)
+              (string= expect (org-columns--truncate-below-width
+                               string width))))
+    (if (= (char-width ?…) 2)
+        (progn (should (check "12…" 3 "12"))
+               (should (check "1…2" 1 "1"))
+               (should (check "1…2" 2 "1"))
+               (should (check "1…2" 3 "1…"))
+               (should (check "……………………" 7 "………")))
+      (progn (should (check "12…" 4 "12…"))
+             (should (check "1…2" 1 "1"))
+             (should (check "1…2" 2 "1…"))
+             (should (check "1…2" 3 "1…2"))
+             (should (check "……………………" 7 "…………………"))))))
 
 (ert-deftest test-org-colview/get-format ()
   "Test `org-columns-get-format' specifications."
@@ -29,41 +120,41 @@
   (should
    (equal "%A"
 	  (org-test-with-temp-text "* H"
-	    (let ((org-columns-default-format "%A"))
-	      (org-columns-get-format)))))
+	                           (let ((org-columns-default-format "%A"))
+	                             (org-columns-get-format)))))
   ;; If COLUMNS keyword is set, use it.
   (should
    (equal "%B"
 	  (org-test-with-temp-text "#+COLUMNS: %B\n* H"
-	    (let ((org-columns-default-format "%A"))
-	      (org-columns-get-format)))))
+	                           (let ((org-columns-default-format "%A"))
+	                             (org-columns-get-format)))))
   (should
    (equal "%B"
 	  (org-test-with-temp-text "#+columns: %B\n* H"
-	    (let ((org-columns-default-format "%A"))
-	      (org-columns-get-format)))))
+	                           (let ((org-columns-default-format "%A"))
+	                             (org-columns-get-format)))))
   (should
    (equal "%B"
 	  (org-test-with-temp-text "* H\n#+COLUMNS: %B"
-	    (let ((org-columns-default-format "%A"))
-	      (org-columns-get-format)))))
+	                           (let ((org-columns-default-format "%A"))
+	                             (org-columns-get-format)))))
   ;; When :COLUMNS: property is set somewhere in the tree, use it over
   ;; the previous ways.
   (should
    (equal
     "%C"
     (org-test-with-temp-text
-	"#+COLUMNS: %B\n* H\n:PROPERTIES:\n:COLUMNS: %C\n:END:\n** S\n<point>"
-      (let ((org-columns-default-format "%A"))
-	(org-columns-get-format)))))
+     "#+COLUMNS: %B\n* H\n:PROPERTIES:\n:COLUMNS: %C\n:END:\n** S\n<point>"
+     (let ((org-columns-default-format "%A"))
+       (org-columns-get-format)))))
   ;; When optional argument is provided, prefer it.
   (should
    (equal
     "%D"
     (org-test-with-temp-text
-	"#+COLUMNS: %B\n* H\n:PROPERTIES:\n:COLUMNS: %C\n:END:\n** S\n<point>"
-      (let ((org-columns-default-format "%A"))
-	(org-columns-get-format "%D"))))))
+     "#+COLUMNS: %B\n* H\n:PROPERTIES:\n:COLUMNS: %C\n:END:\n** S\n<point>"
+     (let ((org-columns-default-format "%A"))
+       (org-columns-get-format "%D"))))))
 
 (ert-deftest test-org-colview/columns-scope ()
   "Test `org-columns' scope."
@@ -142,7 +233,7 @@
   ;; Special case: width takes into account link narrowing in ITEM.
   (should
    (equal
-    '("* [123]" . 7)
+    '("* 123" . 5)
     (org-test-with-temp-text "* [[https://orgmode.org][123]]"
       (let ((org-columns-default-format "%ITEM")) (org-columns))
       (cons (get-char-property (point) 'org-columns-value-modified)
@@ -157,7 +248,7 @@
 	      (org-columns))
 	    (org-trim (get-char-property (point) 'display)))))
   (should
-   (equal "1234… |"
+   (equal (if (= 1 (char-width ?…)) "1234… |" "123… |")
 	  (org-test-with-temp-text "* H\n:PROPERTIES:\n:P: 123456\n:END:"
 	    (let ((org-columns-default-format "%5P")
 		  (org-columns-ellipses "…"))
@@ -224,7 +315,7 @@
 :END:"
       (let ((org-columns-default-format "%A{+;%.1f}")) (org-columns))
       (get-char-property (point) 'org-columns-value-modified))))
-  ;; {:} sums times.  Plain numbers are hours.
+  ;; {:} sums times.  Plain numbers are minutes.
   (should
    (equal
     "4:10"
@@ -242,7 +333,7 @@
       (get-char-property (point) 'org-columns-value-modified))))
   (should
    (equal
-    "3:30"
+    "1:32"
     (org-test-with-temp-text
 	"* H
 ** S1
@@ -510,10 +601,7 @@
   (should
    (equal
     "0min"
-    (cl-letf (((symbol-function 'current-time)
-	       (lambda ()
-		 (apply #'encode-time
-			(org-parse-time-string "<2014-03-04 Tue>")))))
+    (org-test-at-time "<2014-03-04 Tue>"
       (org-test-with-temp-text
 	  "* H
 ** S1
@@ -529,10 +617,7 @@
   (should
    (equal
     "2d"
-    (cl-letf (((symbol-function 'current-time)
-	       (lambda ()
-		 (apply #'encode-time
-			(org-parse-time-string "<2014-03-04 Tue>")))))
+    (org-test-at-time "<2014-03-04 Tue>"
       (org-test-with-temp-text
 	  "* H
 ** S1
@@ -548,10 +633,7 @@
   (should
    (equal
     "1d 12h"
-    (cl-letf (((symbol-function 'current-time)
-	       (lambda ()
-		 (apply #'encode-time
-			(org-parse-time-string "<2014-03-04 Tue>")))))
+    (org-test-at-time "<2014-03-04 Tue>"
       (org-test-with-temp-text
 	  "* H
 ** S1
@@ -1000,6 +1082,7 @@
 	(let ((org-columns-default-format "%A{min}")
 	      (org-columns-ellipses "..")
 	      (org-inlinetask-min-level 15))
+          (org-element-update-syntax)
 	  (org-columns))
 	(get-char-property (point-min) 'org-columns-value)))))
   ;; Handle `org-columns-modify-value-for-display-function', even with
@@ -1009,11 +1092,78 @@
 	  (org-test-with-temp-text "* H"
 	    (let ((org-columns-default-format "%ITEM %ITEM(Name)")
 		  (org-columns-modify-value-for-display-function
-		   (lambda (title value)
+		   (lambda (title _value)
 		     (pcase title ("ITEM" "foo") ("Name" "bar") (_ "baz")))))
 	      (org-columns))
 	    (list (get-char-property 1 'org-columns-value-modified)
 		  (get-char-property 2 'org-columns-value-modified))))))
+
+(ert-deftest test-org-colview/columns-move-row-down ()
+  "Test `org-columns-move-row-down' specifications."
+  (should
+   (equal "* H
+** B
+** A
+"
+          (org-test-with-temp-text "* H
+** A
+** B
+"
+            (let ((org-columns-default-format "%ITEM")) (org-columns)
+                 (next-line 1)
+                 (org-columns-move-row-down)
+                 (buffer-substring-no-properties (point-min) (point-max)))))))
+
+(ert-deftest test-org-colview/columns-move-row-up ()
+  "Test `org-columns-move-row-up' specifications."
+  (should
+   (equal "* H
+** B
+** A
+"
+          (org-test-with-temp-text "* H
+** A
+** B
+"
+            (let ((org-columns-default-format "%ITEM")) (org-columns)
+                 (next-line 2)
+                 (org-columns-move-row-up)
+                 (buffer-substring-no-properties (point-min) (point-max)))))))
+
+(ert-deftest test-org-colview/columns--move-row-stay-at-the-same-column ()
+  "After function call 'org-columns--move-row' point should stay at the same column."
+  ;; `current-column' did not return _visual_ column prior to Emacs 29.
+  (skip-unless (version<= "29" emacs-version))
+  (should
+   (equal 35
+          (org-test-with-temp-text "* H
+** A
+** B
+"
+            (org-columns)
+            (next-line 1)
+            (forward-char 2)
+            (org-columns--move-row)
+            (current-column)))))
+
+(ert-deftest test-org-colview/columns-move-row-down-with-subheading ()
+  "Test `org-columns-move-row-up' specifications with subheading."
+  (should
+   (equal "* H
+** B
+** A
+*** A1
+"
+
+                    (org-test-with-temp-text "* H
+** A
+*** A1
+** B
+"
+          (let ((org-columns-default-format "%ITEM")) (org-columns)
+               (next-line 1)
+               (org-columns-move-row-down)
+               (buffer-substring-no-properties (point-min) (point-max)))))))
 
 (ert-deftest test-org-colview/columns-move-left ()
   "Test `org-columns-move-left' specifications."
@@ -1249,9 +1399,57 @@
 		(list (get-char-property (- (point) 1) 'org-columns-value)
 		      (get-char-property (point) 'org-columns-value))))))))
 
+(ert-deftest test-org-colview/column-property/clocksum ()
+  "Test `org-columns' display of the CLOCKSUM property."
+  (org-test-with-temp-text
+      "* H
+CLOCK: [2022-11-03 06:00]--[2022-11-03 06:03] =>  0:03
+** S1
+CLOCK: [2022-11-03 06:03]--[2022-11-03 06:05] =>  0:02
+** S2
+empty
+** S3
+CLOCK: [2022-11-03 06:05]--[2022-11-03 06:06] =>  0:01"
+    (let ((org-columns-default-format "%CLOCKSUM"))
+      (org-columns))
+    (should
+     (equal
+      '("0:06" "0:02" "" "0:01")
+      (org-map-entries
+       (lambda ()
+         (get-char-property (point) 'org-columns-value-modified)))))))
+
+(ert-deftest test-org-colview/column-property/clocksum_t ()
+  "Test `org-columns' display of the CLOCKSUM_T property."
+  (org-test-at-time "<2022-11-03>"
+    (org-test-with-temp-text
+        "* H
+CLOCK: [2022-11-02 12:00]--[2022-11-03 02:00] =>  14:00
+** S1
+CLOCK: [2022-11-03 23:50]--[2022-11-04 01:50] =>  2:00
+** S2
+empty
+** S3
+CLOCK: [2022-11-03 06:05]--[2022-11-03 06:06] =>  0:01
+"
+      (let ((org-columns-default-format "%CLOCKSUM_T"))
+        (org-columns))
+      (should
+       (equal
+        '("2:11" "0:10" "" "0:01")
+        (org-map-entries
+         (lambda ()
+           (get-char-property (point) 'org-columns-value-modified))))))))
 
 
 ;;; Dynamic block
+
+(defun test-org-colview/dblock-formatter (ipos table params)
+  "User-defined columnview dblock formatting function."
+  (goto-char ipos)
+  (insert-before-markers "Hello columnview!" "\n")
+  (insert-before-markers (format "table has %d rows" (length table)) "\n")
+  (insert-before-markers (format "there are %d parameters" (/ (length params) 2))))
 
 (ert-deftest test-org-colview/dblock ()
   "Test the column view table."
@@ -1276,6 +1474,19 @@
     (org-test-with-temp-text
         "* H\n:PROPERTIES:\n:A: 1\n:END:\n<point>#+BEGIN: columnview\n#+END:"
       (let ((org-columns-default-format "%ITEM %A")) (org-update-dblock))
+      (buffer-substring-no-properties (point) (point-max)))))
+  ;; Test column widths.
+  (should
+   (equal
+    "#+BEGIN: columnview
+| <5>  |
+| ITEM |
+|------|
+| H    |
+#+END:"
+    (org-test-with-temp-text
+        "* H\n<point>#+BEGIN: columnview\n#+END:"
+      (let ((org-columns-default-format "%5ITEM")) (org-update-dblock))
       (buffer-substring-no-properties (point) (point-max)))))
   ;; Properties are case insensitive.
   (should
@@ -1473,6 +1684,26 @@
 :END:"
       (let ((org-columns-default-format "%ITEM %A")) (org-update-dblock))
       (buffer-substring-no-properties (point) (outline-next-heading)))))
+  ;; Test `:exclude-tags' parameter.
+  (should
+   (equal
+    "#+BEGIN: columnview :exclude-tags (\"excludeme\")
+| ITEM | A |
+|------+---|
+| H1   |   |
+#+END:
+"
+    (org-test-with-temp-text
+        "
+* H1
+<point>#+BEGIN: columnview :exclude-tags (\"excludeme\")
+#+END:
+** H1.1 :excludeme:
+:PROPERTIES:
+:A: 1
+:END:"
+      (let ((org-columns-default-format "%ITEM %A")) (org-update-dblock))
+      (buffer-substring-no-properties (point) (outline-next-heading)))))
   ;; Test `:format' parameter.
   (should
    (equal
@@ -1508,7 +1739,49 @@
     (org-test-with-temp-text
         "* H src_emacs-lisp{(+ 1 1)} 1\n<point>#+BEGIN: columnview\n#+END:"
       (let ((org-columns-default-format "%ITEM")) (org-update-dblock))
-      (buffer-substring-no-properties (point) (point-max))))))
+      (buffer-substring-no-properties (point) (point-max)))))
+  ;; Active time stamps are displayed as inactive.
+  (should
+   (equal
+    "#+BEGIN: columnview
+| ITEM | d                | s                | t                |
+|------+------------------+------------------+------------------|
+| H    | [2020-05-14 Thu] | [2020-05-11 Mon] | [2020-06-10 Wed] |
+#+END:"
+    (org-test-with-temp-text
+     "* H
+SCHEDULED: <2020-05-11 Mon> DEADLINE: <2020-05-14 Thu>
+<2020-06-10 Wed>
+<point>#+BEGIN: columnview\n#+END:"
+     (let ((org-columns-default-format
+	    "%ITEM %DEADLINE(d) %SCHEDULED(s) %TIMESTAMP(t)"))
+       (org-update-dblock))
+     (buffer-substring-no-properties (point) (point-max)))))
+  ;; custom formatting function
+  (should
+   (equal
+    "#+BEGIN: columnview :formatter test-org-colview/dblock-formatter
+Hello columnview!
+table has 3 rows
+there are 4 parameters
+#+END:"
+    (org-test-with-temp-text
+     "* H\n<point>#+BEGIN: columnview :formatter test-org-colview/dblock-formatter\n#+END:"
+     (let ((org-columns-default-format "%ITEM"))
+       (org-update-dblock))
+     (buffer-substring-no-properties (point) (point-max)))))
+  ;; test headline linkification
+  (should
+   (equal
+    "#+BEGIN: columnview :link t
+| ITEM |
+|------|
+| [[*H][H]]    |
+#+END:"
+    (org-test-with-temp-text
+     "* H\n<point>#+BEGIN: columnview :link t\n#+END:"
+     (let ((org-columns-default-format "%ITEM")) (org-update-dblock))
+     (buffer-substring-no-properties (point) (point-max))))))
 
 (provide 'test-org-colview)
 ;;; test-org-colview.el ends here

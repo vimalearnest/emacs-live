@@ -1,6 +1,6 @@
-;;; test-ob-lob.el --- test for ob-lob.el
+;;; test-ob-lob.el --- test for ob-lob.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2010-2015 Eric Schulte
+;; Copyright (c) 2010-2015, 2019 Eric Schulte
 ;; Authors: Eric Schulte
 
 ;; This file is not part of GNU Emacs.
@@ -16,7 +16,10 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+(eval-when-compile (require 'cl-lib))
+(require 'ob-lob)
 
 
 ;;; Tests
@@ -39,7 +42,7 @@
 
 (ert-deftest test-ob-lob/call-with-header-arguments ()
   "Test the evaluation of a library of babel #+call: line."
-  (letf (((symbol-function 'org-babel-insert-result)
+  (cl-letf (((symbol-function 'org-babel-insert-result)
 	  (symbol-function 'ignore)))
     (let ((org-babel-library-of-babel
 	   (org-test-with-temp-text-in-file
@@ -58,7 +61,7 @@
       (org-test-at-id "fab7e291-fde6-45fc-bf6e-a485b8bca2f0"
 	(move-beginning-of-line 1)
 	(forward-line 6)
-	(message (buffer-substring (point-at-bol) (point-at-eol)))
+	(message (buffer-substring (line-beginning-position) (line-end-position)))
 	(should
 	 (string= "testing" (org-babel-execute-src-block
 			     nil (org-babel-lob-get-info))))
@@ -132,6 +135,8 @@ for export
 #+call: rubbish()
 #+end_example"
     (should (progn (org-babel-exp-process-buffer) t))))
+
+(defvar temporary-value-for-test)
 
 (ert-deftest test-ob-lob/caching-call-line ()
   (let ((temporary-value-for-test 0))
@@ -247,6 +252,34 @@ call_test-newline[:eval yes :results raw]('(1\n2))<point>"
 
 <point>#+call: bar()"
 	(org-babel-execute-src-block nil (org-babel-lob-get-info))))))
+
+(ert-deftest test-ob-lob/confirm-evaluate ()
+  "Test confirmation when exporting lob calls."
+  ;; With the default `org-confirm-babel-evaluate' of t, the caller is
+  ;; queried one time.
+  (should
+   (= 1
+      (let ((org-export-use-babel t)
+	    (org-confirm-babel-evaluate t)
+	    (confirm-evaluate-calls 0))
+	(cl-letf (((symbol-function 'yes-or-no-p)
+		   (lambda (&rest _ignore)
+		     (cl-incf confirm-evaluate-calls)
+		     t)))
+	  (org-test-with-temp-text
+	      "
+#+name: foo
+#+begin_src emacs-lisp
+  nil
+#+end_src
+
+#+call: foo()"
+	    (let ((string (buffer-string)))
+	      (with-temp-buffer
+		(org-mode)
+		(insert string)
+		(org-babel-exp-process-buffer)
+		confirm-evaluate-calls))))))))
 
 (provide 'test-ob-lob)
 

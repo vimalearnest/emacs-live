@@ -3,6 +3,7 @@
 ;; Copyright (C) 2004, 2005, 2007, 2009  Free Software Foundation, Inc.
 ;; Copyright (C) 1997-1998  Graeme E Moss
 ;; Copyright (C) 2016  Chris Gregory
+;; Copyright (C) 2020  Jacob Ilsø
 
 ;; Author: 1997-1998 Graeme E Moss <gem@cs.york.ac.uk>
 ;; Maintainer: Stefan Monnier <monnier@gnu.org>
@@ -105,8 +106,8 @@
 (require 'haskell-mode)
 (require 'syntax)
 (require 'imenu)
+(require 'subr-x)
 
-;;;###autoload
 (defgroup haskell-decl-scan nil
   "Haskell declaration scanning (`imenu' support)."
   :link '(custom-manual "(haskell-mode)haskell-decl-scan-mode")
@@ -120,6 +121,11 @@
 
 (defcustom haskell-decl-scan-add-to-menubar t
   "Whether to add a \"Declarations\" menu entry to menu bar."
+  :group 'haskell-decl-scan
+  :type 'boolean)
+
+(defcustom haskell-decl-scan-sort-imenu t
+  "Whether to sort the candidates in imenu."
   :group 'haskell-decl-scan
   :type 'boolean)
 
@@ -513,7 +519,7 @@ positions and the type is one of the symbols \"variable\", \"datatype\",
                             (skip-chars-backward " \t")
                             (point))))))
           ;; If we did not manage to extract a name, cancel this
-          ;; declaration (eg. when line ends in "=> ").
+          ;; declaration (e.g. when line ends in "=> ").
           (if (string-match "^[ \t]*$" name) (setq name nil))
           (setq type 'instance)))
         ;; Move past start of current declaration.
@@ -537,22 +543,13 @@ datatypes) in a Haskell file for the `imenu' package."
   ;; These lists are nested using `(INDEX-TITLE . INDEX-ALIST)'.
   (let* ((bird-literate (haskell-ds-bird-p))
          (index-alist '())
-         (index-class-alist '()) ;; Classes
-         (index-var-alist '())   ;; Variables
-         (index-imp-alist '())   ;; Imports
-         (index-inst-alist '())  ;; Instances
-         (index-type-alist '())  ;; Datatypes
-         ;; Variables for showing progress.
-         (bufname (buffer-name))
-         (divisor-of-progress (max 1 (/ (buffer-size) 100)))
+         (imenu (make-hash-table :test 'equal))
          ;; The result we wish to return.
          result)
     (goto-char (point-min))
     ;; Loop forwards from the beginning of the buffer through the
     ;; starts of the top-level declarations.
     (while (< (point) (point-max))
-      (message "Scanning declarations in %s... (%3d%%)" bufname
-               (/ (- (point) (point-min)) divisor-of-progress))
       ;; Grab the next declaration.
       (setq result (haskell-ds-generic-find-next-decl bird-literate))
       (if result
@@ -562,49 +559,29 @@ datatypes) in a Haskell file for the `imenu' package."
                  (posns (cdr name-posns))
                  (start-pos (car posns))
                  (type (cdr result)))
-                 ;; Place `(name . start-pos)' in the correct alist.
-                 (cl-case type
-                   (variable
-                    (setq index-var-alist
-                          (cl-acons name start-pos index-var-alist)))
-                   (datatype
-                    (setq index-type-alist
-                          (cl-acons name start-pos index-type-alist)))
-                   (class
-                    (setq index-class-alist
-                          (cl-acons name start-pos index-class-alist)))
-                   (import
-                    (setq index-imp-alist
-                          (cl-acons name start-pos index-imp-alist)))
-                   (instance
-                    (setq index-inst-alist
-                          (cl-acons name start-pos index-inst-alist)))))))
+            (puthash type
+                     (cons (cons name start-pos) (gethash type imenu '()))
+                     imenu))))
     ;; Now sort all the lists, label them, and place them in one list.
-    (message "Sorting declarations in %s..." bufname)
-    (when index-type-alist
-      (push (cons "Datatypes"
-                  (sort index-type-alist 'haskell-ds-imenu-label-cmp))
-            index-alist))
-    (when index-inst-alist
-      (push (cons "Instances"
-                  (sort index-inst-alist 'haskell-ds-imenu-label-cmp))
-            index-alist))
-    (when index-imp-alist
-      (push (cons "Imports"
-                  (sort index-imp-alist 'haskell-ds-imenu-label-cmp))
-            index-alist))
-    (when index-class-alist
-      (push (cons "Classes"
-                  (sort index-class-alist 'haskell-ds-imenu-label-cmp))
-            index-alist))
-    (when index-var-alist
+    (dolist (type '((datatype . "Datatypes") (instance . "Instances")
+                    (import   . "Imports")   (class    . "Classes")))
+      (when-let ((curr-alist (gethash (car type) imenu)))
+        (push (cons (cdr type)
+                    (if haskell-decl-scan-sort-imenu
+                        (sort curr-alist 'haskell-ds-imenu-label-cmp)
+                      (reverse curr-alist)))
+              index-alist)))
+    (when-let ((var-alist (gethash 'variable imenu)))
       (if haskell-decl-scan-bindings-as-variables
           (push (cons "Variables"
-                      (sort index-var-alist 'haskell-ds-imenu-label-cmp))
+                      (if haskell-decl-scan-sort-imenu
+                          (sort var-alist 'haskell-ds-imenu-label-cmp)
+                        (reverse var-alist)))
                 index-alist)
         (setq index-alist (append index-alist
-                                  (sort index-var-alist 'haskell-ds-imenu-label-cmp)))))
-    (message "Sorting declarations in %s...done" bufname)
+                                  (if haskell-decl-scan-sort-imenu
+                                      (sort var-alist 'haskell-ds-imenu-label-cmp)
+                                    (reverse var-alist))))))
     ;; Return the alist.
     index-alist))
 

@@ -349,7 +349,7 @@
   (sclang-help-mode-limit-point-to-code (sclang-end-of-defun arg)))
 
 (defun sclang-help-mode-fontify-region (start end loudly)
-  (cl-flet ((fontify-code
+  (flet ((fontify-code
 	  (start end loudly)
 	  (funcall 'font-lock-default-fontify-region start end loudly))
 	 (fontify-non-code
@@ -435,7 +435,7 @@
 
 ;; (defun sclang-extension-help-directories ()
 ;;   "Build a list of help directories for extensions."
-;;   (cl-flet ((flatten (seq)
+;;   (flet ((flatten (seq)
 ;; 		  (if (null seq)
 ;; 		      seq
 ;; 		    (if (listp seq)

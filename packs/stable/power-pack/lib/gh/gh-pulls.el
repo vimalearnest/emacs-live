@@ -1,4 +1,4 @@
-;;; gh-pulls.el --- pull requests module for gh.el
+;;; gh-pulls.el --- pull requests module for gh.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2011  Yann Hodique
 
@@ -26,10 +26,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'gh-api)
@@ -39,13 +35,11 @@
 
 (require 'gh-repos)
 
-;;;###autoload
 (defclass gh-pulls-cache (gh-cache)
   ((invalidation-chain :allocation :class
                        :initform '(("^/repos/.*/.*/pulls$" . "\0")
                                    ("^/repos/.*/.*/pulls/.*$" . "\0")))))
 
-;;;###autoload
 (defclass gh-pulls-api (gh-api-v3 gh-comments-api-mixin)
   ((cache-cls :allocation :class :initform gh-pulls-cache)
 
@@ -53,7 +47,6 @@
    (comment-cls :allocation :class :initform gh-pulls-comment))
   "Git pull requests API")
 
-;;;###autoload
 (gh-defclass gh-pulls-comment (gh-comment)
   ((path :initarg :path)
    (diff-hunk :initarg :diff-hunk)
@@ -73,7 +66,6 @@
 			 ("position" . ,(oref req position)))))
     to-update))
 
-;;;###autoload
 (gh-defclass gh-pulls-request-stub (gh-ref-object)
   ((diff-url :initarg :diff-url)
    (patch-url :initarg :patch-url)
@@ -89,7 +81,6 @@
    (head :initarg :head :initform nil :marshal-type gh-repos-ref)
    (base :initarg :base :initform nil :marshal-type gh-repos-ref)))
 
-;;;###autoload
 (gh-defclass gh-pulls-request (gh-pulls-request-stub)
   ((merged :initarg :merged)
    (mergeable :initarg :mergeable)

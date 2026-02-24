@@ -522,9 +522,9 @@ whitespace. Keep point at same relative point in the line."
            ;; Don't count if in string or comment.
            ((as3-face-at-point (- (point) 1)))
            ((looking-back "\\s)")
-            (cl-incf close-count))
+            (incf close-count))
            ((looking-back "\\s(")
-            (cl-incf open-count))
+            (incf open-count))
            )))
       (- open-count close-count))))
 
@@ -575,5 +575,4 @@ whitespace. Keep point at same relative point in the line."
 		(actionscript-mode)
 		(message "actionscript-mode reloaded.")))
 
-(define-key global-map [f5] 'reload-actionscript-mode)
 ;;; actionscript-mode.el ends here

@@ -1,31 +1,71 @@
-emacs ?= emacs
-elmake = $(emacs) -batch -l makefi.el -f
+# Build and test Ivy from a source checkout.
 
-LOAD = -l colir.el -l ivy-overlay.el -l ivy.el -l swiper.el -l counsel.el
+# Copyright (C) 2015-2026 Free Software Foundation, Inc.
+#
+# This file is part of GNU Emacs.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+EMACS ?= emacs
 RM ?= rm -f
 
-all: test
+opt-elcs := \
+  ivy-avy.elc \
+  ivy-hydra.elc
 
-test:
-	$(emacs) -batch $(LOAD) -l ivy-test.el -f ert-run-tests-batch-and-exit
+src-elcs := \
+  colir.elc \
+  ivy-faces.elc \
+  ivy-overlay.elc \
+  ivy.elc \
+  swiper.elc \
+  counsel.elc \
+  $(opt-elcs)
 
-checkdoc:
-	$(emacs) -batch -l targets/checkdoc.el
+test-elcs := ivy-test.elc
 
-compile:
-	$(emacs) -batch -L . -f batch-byte-compile colir.el ivy-overlay.el ivy.el swiper.el counsel.el
+.PHONY: all
+all: compile
 
-plain:
-	$(emacs) --version
-	$(emacs) -Q $(LOAD) -l targets/plain.el
+.PHONY: deps
+deps:
+	$(EMACS) -Q -batch -l targets/elpa.el -f ivy--elpa-install
 
-obsolete:
-	$(emacs) -batch -l targets/obsolete-config.el
+.PHONY: compile
+compile: $(src-elcs)
 
-update-issues:
-	$(elmake) update-issues
+.PHONY: test
+test: compile $(test-elcs)
+	$(EMACS) -Q -batch -L . $(test-elcs:%.elc=-l %) -f ivy-test-run-tests
 
+.PHONY: clean
 clean:
-	$(RM) *.elc
+	$(RM) $(src-elcs) $(test-elcs)
 
-.PHONY: all test checkdoc compile plain obsolete update-issues clean
+.PHONY: checkdoc
+checkdoc:
+	$(EMACS) -Q -batch -L . -l targets/checkdoc.el $(src-elcs:c=)
+
+.PHONY: check-declare
+check-declare:
+	$(EMACS) -Q -batch -eval '(check-declare-directory ".")'
+
+.PHONY: plain
+plain: compile
+	$(EMACS) -Q -L . -l targets/plain.el
+
+%.elc: %.el
+	$(EMACS) -Q -batch -L . $(ELCFLAGS) -f batch-byte-compile $<
+
+$(opt-elcs): ELCFLAGS += -l targets/elpa.el -f ivy--elpa-activate

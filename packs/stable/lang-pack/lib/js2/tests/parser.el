@@ -1,6 +1,6 @@
-;;; tests/parser.el --- Some tests for js2-mode.
+;;; tests/parser.el --- Some tests for js2-mode.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009, 2011-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011-2023  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -16,6 +16,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; run tests with M-x ert-run-tests-interactively
 
 ;;; Code:
 
@@ -103,6 +107,9 @@ the test."
 (js2-deftest-parse variable-assignment
   "a = 1;")
 
+(js2-deftest-parse variable-logical-assignment
+  "b ||= /bar/;")
+
 (js2-deftest-parse empty-object-literal
   "b = {};")
 
@@ -114,6 +121,12 @@ the test."
 
 (js2-deftest-parse comma-after-regexp
   "d = /eee/, 42;")
+
+(js2-deftest-parse regexp-with-s-flag
+  "d = /eee/s;")
+
+(js2-deftest-parse regexp-with-d-flag
+  "d = /eee/d;")
 
 (js2-deftest-parse return-statement
   "function foo() {\n  return 2;\n}")
@@ -156,26 +169,27 @@ the test."
 (js2-deftest-parse void
   "void 0;")
 
+(js2-deftest-parse catch-without-identifier
+  "try {\n} catch {\n  4 + 4;\n}"
+  :warnings-count 0)
+
 ;;; Callers of `js2-valid-prop-name-token'
 
 (js2-deftest-parse parse-property-access-when-not-keyword
   "A.foo = 3;")
 
 (js2-deftest-parse parse-property-access-when-keyword
-  "A.in = 3;"
-  :bind ((js2-allow-keywords-as-property-names t)))
+  "A.in = 3;")
 
 (js2-deftest-parse parse-property-access-when-keyword-no-xml
   "A.in = 3;"
-  :bind ((js2-allow-keywords-as-property-names t)
-         (js2-compiler-xml-available nil)))
+  :bind ((js2-compiler-xml-available nil)))
 
 (js2-deftest-parse parse-object-literal-when-not-keyword
   "a = {b: 1};")
 
 (js2-deftest-parse parse-object-literal-when-keyword
-  "a = {in: 1};"
-  :bind ((js2-allow-keywords-as-property-names t)))
+  "a = {in: 1};")
 
 ;;; 'of' contextual keyword
 
@@ -187,6 +201,12 @@ the test."
 
 (js2-deftest-parse parse-for-of
   "for (var a of []) {\n}")
+
+(js2-deftest-parse parse-for-each
+  "for each (var a of []) {\n}")
+
+(js2-deftest-parse parse-for-await
+  "for await (var a of []) {\n}")
 
 (js2-deftest-parse of-can-be-name
   "void of;")
@@ -283,6 +303,9 @@ the test."
 
 (js2-deftest-parse object-literal-computed-generator-key
   "var x = {*[foo + bar]() {  yield 42;\n}};")
+
+(js2-deftest-parse object-literal-async-generator
+  "var x = {async *foo() {  yield 42;\n}};")
 
 ;;; Function definition
 
@@ -391,6 +414,9 @@ the test."
 (js2-deftest-parse function-strict-no-getter-setter-duplicate
   "'use strict';\nvar a = {get x() {}, set x() {}};")
 
+(js2-deftest-parse function-strict-with-static-block
+  "'use strict';\nclass C {\n  static {\n}\n}")
+
 ;;; Spread operator
 
 (js2-deftest-parse spread-in-array-literal
@@ -438,6 +464,10 @@ the test."
 
 (js2-deftest-parse arrow-function-recovers-from-error
   "[(,foo) => 1];" :syntax-error "," :errors-count 6)
+
+(js2-deftest-parse arrow-function-with-trailing-comma-in-arguments
+  "(a, b = 1,) => {  c;\n};"
+  :reference "(a, b = 1) => {  c;\n};")
 
 ;;; Automatic semicolon insertion
 
@@ -538,6 +568,9 @@ the test."
 (js2-deftest-parse async-method-allow-await
   "({async f() {  await x;\n}});")
 
+(js2-deftest-parse async-method-generator
+  "class C {\n  async *foo() {}\n}")
+
 ;;; Await
 
 (js2-deftest-parse await-is-ok "async function foo() {\n  await bar();\n}")
@@ -547,6 +580,9 @@ the test."
 
 (js2-deftest-parse await-inside-array-is-ok
                    "async function foo() {\n  var results = [await bar(), await baz()];\n}")
+
+(js2-deftest-parse await-top-level-is-ok
+                   "await bar();")
 
 (js2-deftest-parse await-inside-non-async-function-is-not-ok
                    "function foo() {\n  await bar();\n}"
@@ -586,7 +622,8 @@ the test."
 
 (js2-deftest-parse decimal-starting-with-zero "081;" :reference "81;")
 
-(js2-deftest-parse huge-hex "0x0123456789abcdefABCDEF;" :reference "-1;")
+(js2-deftest-parse huge-hex "0x0123456789abcdefABCDEF;"
+  :reference (if (> emacs-major-version 26) "1375488932539311409843695;" "-1;"))
 
 (js2-deftest-parse octal-without-o "071;" :reference "57;")
 
@@ -604,6 +641,39 @@ the test."
 
 (js2-deftest-parse octal-number-broken "0o812;"
   :syntax-error "0o8" :errors-count 2)
+
+;;; Numbers with numeric separator (examples from
+;;; https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#numeric_separators)
+
+(js2-deftest-parse decimal-with-numeric-separator "1_000_000_000_000;"
+  :reference "1000000000000;")
+
+(js2-deftest-parse decimal-with-dot-and-numeric-separator "1_050.95;"
+  :reference "1050.95;")
+
+(js2-deftest-parse binary-number-with-numeric-separator "0b1010_0001_1000_0101;" :reference "41349;")
+
+(js2-deftest-parse octal-with-numeric-separator "0o2_2_5_6;"
+  :reference "1198;")
+
+(js2-deftest-parse hex-number-with-numeric-separator "0xA0_B0_C0;"
+  :reference "10531008;")
+
+(js2-deftest-parse decimal-with-consecutive-numeric-separators-broken "100__000"
+  :syntax-error "100__000"
+  :errors-count 2)
+
+(js2-deftest-parse decimal-with-trailing-numeric-separator-broken "100_"
+  :syntax-error "100_"
+  :errors-count 2)
+
+(js2-deftest-parse decimal-with-numeric-separator-before-dot-broken "100_.12"
+  :syntax-error "100_.12"
+  :errors-count 2)
+
+(js2-deftest-parse decimal-with-numeric-separator-after-leading-0-broken "0_1"
+  :syntax-error "0_"
+  :errors-count 2)
 
 ;;; Modules
 
@@ -787,6 +857,15 @@ the test."
 (js2-deftest-parse import-default-and-namespace "import robert as bob, * as lib from 'src/lib';")
 (js2-deftest-parse import-from-this-module "import {url} from this module;")
 
+(js2-deftest-parse import-meta
+  "console.log(import.meta);")
+
+(js2-deftest-parse import-dynamic-stmt
+  "import('/modules/my-module.js').then((module) => {});")
+
+(js2-deftest-parse import-dynamic-expr
+  "let v = import('/modules/my-module.js').then((module) => {  module.getV();\n});")
+
 ;; Module Exports
 
 (js2-deftest export-rexport "export * from 'other/lib'"
@@ -928,6 +1007,9 @@ the test."
 (js2-deftest-parse tagged-template
   "foo.args`${++x, \"o\"}k`;")
 
+(js2-deftest-parse template-with-escapes
+  "const valid = `\\${${a}}`;")
+
 ;;; Classes
 
 (js2-deftest-parse parse-harmony-class-statement
@@ -982,6 +1064,24 @@ the test."
 (js2-deftest-parse parse-class-public-field-computed
   "class C {\n  [a + b] = c\n}")
 
+(js2-deftest-parse parse-class-static-fields-no-semi
+  "class C {\n  static a\n  static b = 42\n}")
+
+(js2-deftest-parse parse-class-static-block
+  "class Foo {\n  static {\n  a = 4;\n}\n}")
+
+;;; Private names
+
+(js2-deftest-parse parse-class-private-field-with-init
+  "class C {\n  #x = 42;\n  static #y = 24;\n}"
+  :reference "class C {\n  #x = 42\n  static #y = 24\n}")
+
+(js2-deftest-parse parse-class-private-method
+  "class C {\n  #foo(y) {  this.#x = 5;\n  y.#x = 6;\n}\n}")
+
+(js2-deftest-parse parse-class-private-getter
+  "class C {\n  get #foo(y) {  this.#x;\n}\n}")
+
 ;;; Operators
 
 (js2-deftest-parse exponentiation
@@ -989,6 +1089,44 @@ the test."
 
 (js2-deftest-parse exponentiation-prohibits-unary-op
   "var a = -b ** c" :syntax-error "-b")
+
+;; nullish coalescing, via https://github.com/tc39/proposal-nullish-coalescing
+(js2-deftest-parse nullish-coalescing-operator-null-variable
+  "var a = null;\na ?? 1;")
+
+(js2-deftest-parse nullish-coalescing-operator-inexisting-field
+  "var a = {};\na.nonexistant ?? 1;")
+
+(js2-deftest-parse nullish-coalescing-operator-null-value
+  "var b = 1;\nnull ?? b;")
+
+(js2-deftest-parse nullish-coalescing-operator-in-if
+  "if (null ?? true) {\n  a = 2;\n}")
+
+(js2-deftest-parse nullish-coalescing-operator-in-ternary
+  "var c = null ?? true ? 1 : 2;")
+
+
+(js2-deftest optional-chaining-operator-on-property-access
+  "var a = {}; a?.b;"
+  (js2-mode--and-parse)
+  (let ((node (js2-find-node js2-mode-ast 'js2-name-node-p)))
+    (should node)
+    (should (string= (js2-node-text node) "b"))))
+
+(js2-deftest optional-chaining-operator-on-get-element
+  "var a = []; a?.[99];"
+  (js2-mode--and-parse)
+  (let ((node (js2-find-node js2-mode-ast 'js2-number-node-p)))
+    (should node)
+    (should (string= (js2-node-text node) "99"))))
+
+(js2-deftest optional-chaining-operator-on-functioncall
+  "var a = function(b){}; a?.(99);"
+  (js2-mode--and-parse)
+  (let ((node (js2-find-node js2-mode-ast 'js2-number-node-p)))
+    (should node)
+    (should (string= (js2-node-text node) "99"))))
 
 (js2-deftest unary-void-node-start
   "var c = void 0"
@@ -1085,11 +1223,14 @@ the test."
     (should (= (js2-symbol-decl-type var-entry) js2-VAR))
     (should (js2-name-node-p (js2-symbol-ast-node var-entry)))))
 
-(defun js2-test-scope-of-nth-variable-satisifies-predicate (variable nth predicate)
+(defun js2-get-nth-variable-enclosing-scope (variable nth)
   (goto-char (point-min))
-  (dotimes (n (1+ nth)) (search-forward variable))
+  (dotimes (_ (1+ nth)) (search-forward variable))
   (forward-char -1)
-  (let ((scope (js2-node-get-enclosing-scope (js2-node-at-point))))
+  (js2-node-get-enclosing-scope (js2-node-at-point)))
+
+(defun js2-test-scope-of-nth-variable-satisifies-predicate (variable nth predicate)
+  (let ((scope (js2-get-nth-variable-enclosing-scope variable nth)))
     (should (funcall predicate (js2-get-defining-scope scope variable)))))
 
 (js2-deftest for-node-is-declaration-scope "for (let i = 0; i; ++i) {};"
@@ -1109,6 +1250,12 @@ the test."
 (js2-deftest array-comp-is-result-scope "[x * 2 for (x in y)];"
   (js2-mode--and-parse)
   (js2-test-scope-of-nth-variable-satisifies-predicate "x" 0 #'js2-comp-loop-node-p))
+
+(js2-deftest function-name-enclosing-scope-is-parent-scope "(function(){ var bar; function foo(){} })()"
+  (js2-mode--and-parse)
+  (let ((scope1 (js2-get-nth-variable-enclosing-scope "bar" 0))
+        (scope2 (js2-get-nth-variable-enclosing-scope "foo" 0)))
+    (should (eq scope1 scope2))))
 
 (js2-deftest array-comp-has-parent-scope
              "var a,b=[for (i of [[1,2]]) for (j of i) j * a];"
@@ -1385,6 +1532,41 @@ the test."
 (js2-deftest-classify-variables import-namespace-used
   "import * as foo from 'module'; function bar() { return foo.x; }"
   '("foo@13:I" 56 "bar@41:U"))
+
+(js2-deftest-classify-variables destructured-function-params-1
+  "\
+function foo({var1}, var0) {
+    const bar = {var1},
+          var2 = {bar},
+          var3 = {var2},
+          var4 = {bar, var1, var2, var3, var4};
+    return({var4});
+}"
+  '("foo@10:U" "var1@15:P" 47 126 "var0@22:P" "bar@40:I" 72 121 "var2@64:I" 96 132 "var3@88:I" 138 "var4@113:I" 144 163))
+
+(js2-deftest-classify-variables destructured-function-params-2
+  "\
+function foo([var0, {var1}]) {
+    return var0 * var1;
+}"
+  '("foo@10:U" "var0@15:P" 43 "var1@22:P" 50))
+
+(js2-deftest-classify-variables uninitialized-class
+  "\
+import React from 'react';
+import PropTypes from 'prop-types';
+
+class SomeComponent extends React.Component {
+    render() {
+        return <div></div>;
+    }
+}
+
+SomeComponent.propTypes = {
+};
+
+export default SomeComponent;"
+  '("React@8:I" 93 "PropTypes@35:U" "SomeComponent@71:I" 163 210))
 
 ;; Side effects
 

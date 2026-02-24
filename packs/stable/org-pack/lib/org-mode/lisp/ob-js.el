@@ -1,10 +1,10 @@
-;;; ob-js.el --- Babel Functions for Javascript      -*- lexical-binding: t; -*-
+;;; ob-js.el --- Babel Functions for JavaScript      -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2025 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research, js
-;; Homepage: https://orgmode.org
+;; URL: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -30,22 +30,26 @@
 
 ;;; Requirements:
 
-;; - a non-browser javascript engine such as node.js http://nodejs.org/
-;;   or mozrepl http://wiki.github.com/bard/mozrepl/
+;; - a non-browser javascript engine such as node.js https://nodejs.org/
+;;   or mozrepl https://wiki.github.com/bard/mozrepl/
 ;;
 ;; - for session based evaluation mozrepl and moz.el are required see
-;;   http://wiki.github.com/bard/mozrepl/emacs-integration for
+;;   https://wiki.github.com/bard/mozrepl/emacs-integration for
 ;;   configuration instructions
 
 ;;; Code:
+
+(require 'org-macs)
+(org-assert-version)
+
 (require 'ob)
 
 (declare-function run-mozilla "ext:moz" (arg))
-(declare-function httpd-start "simple-httpd" ())
-(declare-function run-skewer "skewer-mode" ())
-(declare-function skewer-repl "skewer-repl" ())
-(declare-function indium-run-node "indium-nodejs" (command))
-(declare-function indium-eval "indium-interaction" (string &optional callback))
+(declare-function httpd-start "ext:simple-httpd" ())
+(declare-function run-skewer "ext:skewer-mode" ())
+(declare-function skewer-repl "ext:skewer-repl" ())
+(declare-function indium-run-node "ext:indium-nodejs" (command))
+(declare-function indium-eval "ext:indium-interaction" (string &optional callback))
 
 (defvar org-babel-default-header-args:js '()
   "Default header arguments for js code blocks.")
@@ -65,12 +69,15 @@
   :safe #'stringp)
 
 (defvar org-babel-js-function-wrapper
-  "require('sys').print(require('sys').inspect(function(){\n%s\n}()));"
-  "Javascript code to print value of body.")
+  ;; Note that newline after %s - it makes sure that closing
+  ;; parenthesis are not shadowed if the last line of the body is a
+  ;; line comment.
+  "require('process').stdout.write(require('util').inspect(function(){%s\n}()));"
+  "JavaScript code to print value of body.")
 
 (defun org-babel-execute:js (body params)
-  "Execute a block of Javascript code with org-babel.
-This function is called by `org-babel-execute-src-block'"
+  "Execute JavaScript BODY according to PARAMS.
+This function is called by `org-babel-execute-src-block'."
   (let* ((org-babel-js-cmd (or (cdr (assq :cmd params)) org-babel-js-cmd))
 	 (session (cdr (assq :session params)))
          (result-type (cdr (assq :result-type params)))
@@ -92,7 +99,7 @@ This function is called by `org-babel-execute-src-block'"
 		  ;; Indium Node REPL.  Separate case because Indium
 		  ;; REPL is not inherited from Comint mode.
 		  ((string= session "*JS REPL*")
-		   (require 'indium-repl)
+                   (org-require-package 'indium-repl "indium")
 		   (unless (get-buffer session)
 		     (indium-run-node org-babel-js-cmd))
 		   (indium-eval full-body))
@@ -151,20 +158,21 @@ specifying a variable of the same value."
     session))
 
 (defun org-babel-variable-assignments:js (params)
-  "Return list of Javascript statements assigning the block's variables."
+  "Return list of JavaScript statements assigning the block's variables.
+The variables are defined in PARAMS."
   (mapcar
    (lambda (pair) (format "var %s=%s;"
 			  (car pair) (org-babel-js-var-to-js (cdr pair))))
    (org-babel--get-vars params)))
 
 (defun org-babel-js-initiate-session (&optional session _params)
-  "If there is not a current inferior-process-buffer in `SESSION'
-then create.  Return the initialized session."
+  "If there is not a current inferior-process-buffer in `SESSION' then create.
+Return the initialized session."
   (cond
    ((string= session "none")
     (warn "Session evaluation of ob-js is not supported"))
    ((string= "*skewer-repl*" session)
-    (require 'skewer-repl)
+    (org-require-package 'skewer-repl "skewer-mode")
     (let ((session-buffer (get-buffer "*skewer-repl*")))
       (if (and session-buffer
 	       (org-babel-comint-buffer-livep (get-buffer session-buffer))
@@ -175,8 +183,9 @@ then create.  Return the initialized session."
 	(run-skewer)
 	(skewer-repl)
 	session-buffer)))
+   ;; SIC, JavaScript miscapitalized in `js-comint.el'.
    ((string= "*Javascript REPL*" session)
-    (require 'js-comint)
+    (org-require-package 'js-comint)
     (let ((session-buffer "*Javascript REPL*"))
       (if (and (org-babel-comint-buffer-livep (get-buffer session-buffer))
 	       (comint-check-proc session-buffer))
@@ -185,7 +194,9 @@ then create.  Return the initialized session."
 	(sit-for .5)
 	session-buffer)))
    ((string= "mozrepl" org-babel-js-cmd)
-    (require 'moz)
+    ;; FIXME: According to https://github.com/bard/mozrepl, this REPL
+    ;; is outdated and does not work for Firefox >54.
+    (org-require-package 'moz "mozrepl")
     (let ((session-buffer (save-window-excursion
 			    (run-mozilla nil)
 			    (rename-buffer session)
@@ -200,7 +211,5 @@ then create.  Return the initialized session."
     (error "Sessions are only supported with mozrepl add \":cmd mozrepl\""))))
 
 (provide 'ob-js)
-
-
 
 ;;; ob-js.el ends here

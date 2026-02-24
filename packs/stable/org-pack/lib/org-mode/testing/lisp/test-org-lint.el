@@ -1,6 +1,6 @@
 ;;; test-org-lint.el --- Tests for Org Lint          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016  Nicolas Goaziou
+;; Copyright (C) 2016, 2019  Nicolas Goaziou
 
 ;; Author: Nicolas Goaziou <mail@nicolasgoaziou.fr>
 
@@ -15,9 +15,32 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
+
+(require 'org-footnote)
+(require 'org-lint)
+
+(ert-deftest test-org-lint/add-checker ()
+  "Test `org-lint-add-checker'."
+  ;; Name should be a non-nil symbol.
+  (should-error (org-lint-add-checker nil "Nil check" #'ignore))
+  (should-error (org-lint-add-checker 2 "Odd check" #'ignore))
+  ;; Check function should be valid.
+  (should-error (org-lint-add-checker 'check "check" (gensym)))
+  ;; Checkers must be named uniquely.
+  (should
+   (= 1
+      (let ((org-lint--checkers nil))
+        (org-lint-add-checker 'check "check" #'ignore)
+        (length org-lint--checkers))))
+  (should-not
+   (= 2
+      (let ((org-lint--checkers nil))
+        (org-lint-add-checker 'check "check" #'ignore)
+        (org-lint-add-checker 'check "other check" #'ignore)
+        (length org-lint--checkers)))))
 
 (ert-deftest test-org-lint/duplicate-custom-id ()
   "Test `org-lint-duplicate-custom-id' checker."
@@ -158,7 +181,7 @@ Paragraph 2"
   (should-not
    (org-test-with-temp-text "[[(foo)]]
 #+begin_src emacs-lisp -l \"; ref:%s\"
-(+ 1 1) ; ref:foo
+\(+ 1 1) ; ref:foo
 #+end_src"
      (org-lint '(invalid-coderef-link)))))
 
@@ -205,6 +228,32 @@ Paragraph 2"
 
 (ert-deftest test-org-lint/obsolete-properties-drawer ()
   "Test `org-lint-obsolete-properties-drawer' checker."
+  (should-not
+   (org-test-with-temp-text "
+* H
+:PROPERTIES:
+:SOMETHING: foo
+:END:"
+     (org-lint '(obsolete-properties-drawer))))
+  (should-not
+   (org-test-with-temp-text "
+* H
+SCHEDULED: <2012-03-29>
+:PROPERTIES:
+:SOMETHING: foo
+:END:"
+     (org-lint '(obsolete-properties-drawer))))
+  (should-not
+   (org-test-with-temp-text ":PROPERTIES:
+:SOMETHING: foo
+:END:"
+     (org-lint '(obsolete-properties-drawer))))
+  (should-not
+   (org-test-with-temp-text "# Comment
+:PROPERTIES:
+:SOMETHING: foo
+:END:"
+     (org-lint '(obsolete-properties-drawer))))
   (should
    (org-test-with-temp-text "
 * H
@@ -218,6 +267,12 @@ Paragraph
 * H
 :PROPERTIES:
 This is not a node property
+:END:"
+     (org-lint '(obsolete-properties-drawer))))
+  (should
+   (org-test-with-temp-text "Paragraph
+:PROPERTIES:
+:FOO: bar
 :END:"
      (org-lint '(obsolete-properties-drawer)))))
 
@@ -240,6 +295,9 @@ This is not a node property
   "Test `org-lint-non-existent-setupfile-parameter' checker."
   (should
    (org-test-with-temp-text "#+setupfile: Idonotexist.org"
+     (org-lint '(non-existent-setupfile-parameter))))
+  (should-not
+   (org-test-with-temp-text "#+setupfile: https://I.do/not.exist.org"
      (org-lint '(non-existent-setupfile-parameter)))))
 
 (ert-deftest test-org-lint/wrong-include-link-parameter ()
@@ -278,6 +336,9 @@ This is not a node property
   "Test `org-lint-unknown-options-item' checker."
   (should
    (org-test-with-temp-text "#+options: foobarbaz:t"
+     (org-lint '(unknown-options-item))))
+  (should
+   (org-test-with-temp-text "#+options: H:"
      (org-lint '(unknown-options-item)))))
 
 (ert-deftest test-org-lint/invalid-macro-argument-and-template ()
@@ -301,6 +362,12 @@ This is not a node property
   (should-not
    (org-test-with-temp-text
        "#+macro: valid $1 $2\n{{{valid(1, 2)}}}"
+     (org-lint '(invalid-macro-argument-and-template))))
+  (should
+   (org-test-with-temp-text "{{{keyword}}}"
+     (org-lint '(invalid-macro-argument-and-template))))
+  (should
+   (org-test-with-temp-text "{{{keyword(one, too many)}}}"
      (org-lint '(invalid-macro-argument-and-template)))))
 
 (ert-deftest test-org-lint/undefined-footnote-reference ()
@@ -315,6 +382,9 @@ This is not a node property
    (org-test-with-temp-text "Text[fn:1:inline reference]"
      (org-lint '(undefined-footnote-reference))))
   (should-not
+   (org-test-with-temp-text "Text[fn:1:inline reference] [fn:1]"
+     (org-lint '(undefined-footnote-reference))))
+  (should-not
    (org-test-with-temp-text "Text[fn::anonymous reference]"
      (org-lint '(undefined-footnote-reference)))))
 
@@ -327,14 +397,12 @@ This is not a node property
    (org-test-with-temp-text "Text[fn:1]\n[fn:1] Definition"
      (org-lint '(unreferenced-footnote-definition)))))
 
-(ert-deftest test-org-lint/colon-in-name ()
-  "Test `org-lint-colon-in-name' checker."
+(ert-deftest test-org-lint/mismatched-planning-repeaters ()
+  "Test `org-lint-mismatched-planning-repeaters' checker."
   (should
-   (org-test-with-temp-text "#+name: tab:name\n| a |"
-     (org-lint '(colon-in-name))))
-  (should-not
-   (org-test-with-temp-text "#+name: name\n| a |"
-     (org-lint '(colon-in-name)))))
+   (org-test-with-temp-text "* H
+DEADLINE: <2023-03-26 Sun +2w> SCHEDULED: <2023-03-26 Sun +1w>"
+     (org-lint '(mismatched-planning-repeaters)))))
 
 (ert-deftest test-org-lint/misplaced-planning-info ()
   "Test `org-lint-misplaced-planning-info' checker."
@@ -357,6 +425,9 @@ SCHEDULED: <2012-03-29 thu.>"
   "Test `org-lint-incomplete-drawer' checker."
   (should
    (org-test-with-temp-text ":DRAWER:"
+     (org-lint '(incomplete-drawer))))
+  (should
+   (org-test-with-temp-text ":DRAWER:\n:ODD:\n:END:"
      (org-lint '(incomplete-drawer))))
   (should-not
    (org-test-with-temp-text ":DRAWER:\n:END:"
@@ -414,6 +485,33 @@ SCHEDULED: <2012-03-29 thu.>"
   (should
    (org-test-with-temp-text "[[file+emacs:foo.org]]"
      (org-lint '(file-application)))))
+
+(ert-deftest test-org-lint/percenc-encoding-link-escape ()
+  "Test `org-lint-percent-encoding-link-escape' checker."
+  (should
+   (org-test-with-temp-text "[[A%20B]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should
+   (org-test-with-temp-text "[[%5Bfoo%5D]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should
+   (org-test-with-temp-text "[[A%2520B]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should-not
+   (org-test-with-temp-text "[[A B]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should-not
+   (org-test-with-temp-text "[[A%30B]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should-not
+   (org-test-with-temp-text "[[A%20%30B]]"
+     (org-lint '(percent-encoding-link-escape))))
+  (should-not
+   (org-test-with-temp-text "<file:A%20B>"
+     (org-lint '(percent-encoding-link-escape))))
+  (should-not
+   (org-test-with-temp-text "[[A B%]]"
+     (org-lint '(percent-encoding-link-escape)))))
 
 (ert-deftest test-org-lint/wrong-header-argument ()
   "Test `org-lint-wrong-header-argument' checker."
@@ -487,6 +585,68 @@ SCHEDULED: <2012-03-29 thu.>"
 #+end_src"
      (org-lint '(wrong-header-value)))))
 
+(ert-deftest test-org/spurious-colons ()
+  "Test `org-list-spurious-colons' checker."
+  (should-not
+   (org-test-with-temp-text "* H :tag:tag2:"
+     (org-lint '(spurious-colons))))
+  (should
+   (org-test-with-temp-text "* H :tag::tag2:"
+     (org-lint '(spurious-colons))))
+  (should
+   (org-test-with-temp-text "* H :tag::"
+     (org-lint '(spurious-colons)))))
+
+(ert-deftest test-org-lint/non-existent-bibliography ()
+  "Test `org-lint-non-existent-bibliography' checker."
+  (should
+   (org-test-with-temp-text "#+bibliography: Idonotexist.bib"
+     (org-lint '(non-existent-bibliography)))))
+
+(ert-deftest test-org-lint/missing-print-bibliography ()
+  "Test `org-lint-missing-print-bibliography' checker."
+  (should
+   (org-test-with-temp-text "[cite:@foo]"
+     (org-lint '(missing-print-bibliography))))
+  (should-not
+   (org-test-with-temp-text "[cite:@foo]\n#+print_bibliography:"
+     (org-lint '(missing-print-bibliography))))
+  (should-not
+   (org-test-with-temp-text ""
+     (org-lint '(missing-print-bibliography)))))
+
+(ert-deftest test-org-lint/invalid-cite-export-declaration ()
+  "Test `org-lint-invalid-cite-export-declaration' checker."
+  (should
+   (org-test-with-temp-text "#+cite_export: "
+     (org-lint '(invalid-cite-export-declaration))))
+  (should
+   (org-test-with-temp-text "#+cite_export: 2"
+     (org-lint '(invalid-cite-export-declaration))))
+  (should
+   (org-test-with-temp-text "#+cite_export: basic bar baz qux"
+     (org-lint '(invalid-cite-export-declaration))))
+  (should
+   (org-test-with-temp-text "#+cite_export: basic \"bar"
+     (org-lint '(invalid-cite-export-declaration))))
+  (should
+   (org-test-with-temp-text "#+cite_export: unknown"
+     (org-lint '(invalid-cite-export-declaration))))
+  (should-not
+   (org-test-with-temp-text "#+cite_export: basic"
+     (org-lint '(invalid-cite-export-declaration)))))
+
+(ert-deftest test-org-lint/incomplete-citation ()
+  "Test `org-lint-incomplete-citation' checker."
+  (should
+   (org-test-with-temp-text "[cite:foo]"
+     (org-lint '(incomplete-citation))))
+  (should
+   (org-test-with-temp-text "[cite:@foo"
+     (org-lint '(incomplete-citation))))
+  (should-not
+   (org-test-with-temp-text "[cite:@foo]"
+     (org-lint '(incomplete-citation)))))
 
 (provide 'test-org-lint)
 ;;; test-org-lint.el ends here

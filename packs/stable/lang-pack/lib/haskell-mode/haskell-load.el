@@ -2,6 +2,7 @@
 
 ;; Copyright © 2014 Chris Done. All rights reserved.
 ;;             2016 Arthur Fayzrakhmanov
+;;             2020 Marc Berkowitz <mberkowitz@github.com>
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -105,34 +106,8 @@ actual Emacs buffer of the module being loaded."
     (with-current-buffer (haskell-interactive-mode-splices-buffer session)
       (erase-buffer)))
   (let* ((ok (cond
-              ((haskell-process-consume
-                process
-                "Ok, \\(?:[0-9]+\\) modules? loaded\\.$")
-               t)
-               ((haskell-process-consume
-                process
-                "Ok, \\(?:[a-z]+\\) modules? loaded\\.$") ;; for ghc 8.4
-               t)
-              ((haskell-process-consume
-                process
-                "Failed, \\(?:[0-9]+\\) modules? loaded\\.$")
-               nil)
-              ((haskell-process-consume
-                process
-                "Failed, \\(?:[a-z]+\\) modules? loaded\\.$") ;; ghc 8.6.3 says so
-               nil)
-              ((haskell-process-consume
-                process
-                "Ok, modules loaded: \\(.+\\)\\.$")
-               t)
-              ((haskell-process-consume
-                process
-                "Failed, modules loaded: \\(.+\\)\\.$")
-               nil)
-	      ((haskell-process-consume
-                process
-                "Failed, no modules loaded\\.$") ;; for ghc 8.4
-               nil)
+              ((haskell-process-consume process "Ok, .*$") t)
+              ((haskell-process-consume process "Failed, .*$") nil)
               (t
                (error (message "Unexpected response from haskell process.")))))
          (modules (haskell-process-extract-modules buffer))
@@ -204,7 +179,8 @@ list of modules where missed IDENT was found."
             (string-match
              "Use \\([A-Z][A-Za-z]+\\) if you want to disable this"
              msg)
-            (string-match "use \\([A-Z][A-Za-z]+\\)" msg)
+            (and (string-match "use \\([A-Z][A-Za-z]+\\)" msg)
+                 (not (string-match "refactoring to use" msg)))
             (string-match "You need \\([A-Z][A-Za-z]+\\)" msg)))
          (when haskell-process-suggest-language-pragmas
            (haskell-process-suggest-pragma
@@ -245,9 +221,6 @@ list of modules where missed IDENT was found."
                (haskell-process-suggest-imports session file modules ident)))
            (when haskell-process-suggest-haskell-docs-imports
              (let ((modules (haskell-process-haskell-docs-ident ident)))
-               (haskell-process-suggest-imports session file modules ident)))
-           (when haskell-process-suggest-hayoo-imports
-             (let ((modules (haskell-process-hayoo-ident ident)))
                (haskell-process-suggest-imports session file modules ident)))))
         ((string-match "^[ ]+It is a member of the hidden package [‘`‛]\\([^@\r\n]+\\).*['’].$" msg)
          (when haskell-process-suggest-add-package
@@ -266,67 +239,58 @@ list of modules where missed IDENT was found."
                      (get-buffer-create "*haskell-process-log*")
                      (get-buffer-create "*haskell-process-log*"))
       (switch-to-buffer-other-window (get-buffer "*haskell-process-log*")))
-     (t (haskell-process-queue-command
-         process
-         (make-haskell-command
-          :state (list (haskell-interactive-session) process command 0)
-          :go
-          (lambda (state)
-            (haskell-process-send-string
-             (cadr state)
-             (format haskell-process-do-cabal-format-string
-                     (haskell-session-cabal-dir (car state))
-                     (format "%s %s"
-                             (cl-ecase (haskell-process-type)
-                               ('ghci haskell-process-path-cabal)
-                               ('cabal-repl haskell-process-path-cabal)
-                               ('cabal-new-repl haskell-process-path-cabal)
-                               ('cabal-ghci haskell-process-path-cabal)
-                               ('stack-ghci haskell-process-path-stack))
-                             (cl-caddr state)))))
-          :live
-          (lambda (state buffer)
-            (let ((cmd (replace-regexp-in-string "^\\([a-z]+\\).*"
-                                                 "\\1"
-                                                 (cl-caddr state))))
-              (cond ((or (string= cmd "build")
-                         (string= cmd "install"))
-                     (haskell-process-live-build (cadr state) buffer t))
-                    (t
-                     (haskell-process-cabal-live state buffer)))))
-          :complete
-          (lambda (state response)
-            (let* ((process (cadr state))
-                   (session (haskell-process-session process))
-                   (message-count 0)
-                   (cursor (haskell-process-response-cursor process)))
-              ;; XXX: what the hell about the rampant code duplication?
-              (haskell-process-set-response-cursor process 0)
-              (while (haskell-process-errors-warnings nil session process response)
-                (setq message-count (1+ message-count)))
-              (haskell-process-set-response-cursor process cursor)
-              (let ((msg (format "Complete: cabal %s (%s compiler messages)"
-                                 (cl-caddr state)
-                                 message-count)))
-                (haskell-interactive-mode-echo session msg)
-                (when (= message-count 0)
-                  (haskell-interactive-mode-echo
-                   session
-                   "No compiler messages, dumping complete output:")
-                  (haskell-interactive-mode-echo session response))
-                (haskell-mode-message-line msg)
-                (when (and haskell-notify-p
-                           (fboundp 'notifications-notify))
-                  (notifications-notify
-                   :title (format "*%s*" (haskell-session-name (car state)))
-                   :body msg
-                   :app-name (cl-ecase (haskell-process-type)
-                               ('ghci haskell-process-path-cabal)
-                               ('cabal-repl haskell-process-path-cabal)
-                               ('cabal-new-repl haskell-process-path-cabal)
-                               ('cabal-ghci haskell-process-path-cabal)
-                               ('stack-ghci haskell-process-path-stack))
-                   :app-icon haskell-process-logo)))))))))))
+     (t (let ((app-name (cl-ecase (haskell-process-type)
+                          (ghci haskell-process-path-cabal)
+                          (cabal-repl haskell-process-path-cabal)
+                          (stack-ghci haskell-process-path-stack))))
+          (haskell-process-queue-command
+           process
+           (make-haskell-command
+            :state (list (haskell-interactive-session) process command 0)
+            :go
+            (lambda (state)
+              (haskell-process-send-string
+               (cadr state)
+               (format haskell-process-do-cabal-format-string
+                       (shell-quote-argument (haskell-session-cabal-dir (car state)))
+                       (format "%s %s" app-name (cl-caddr state)))))
+            :live
+            (lambda (state buffer)
+              (let ((cmd (replace-regexp-in-string "^\\([a-z]+\\).*"
+                                                   "\\1"
+                                                   (cl-caddr state))))
+                (cond ((or (string= cmd "build")
+                           (string= cmd "install"))
+                       (haskell-process-live-build (cadr state) buffer t))
+                      (t
+                       (haskell-process-cabal-live state buffer)))))
+            :complete
+            (lambda (state response)
+              (let* ((process (cadr state))
+                     (session (haskell-process-session process))
+                     (message-count 0)
+                     (cursor (haskell-process-response-cursor process)))
+                (haskell-process-set-response-cursor process 0)
+                (while (haskell-process-errors-warnings nil session process response)
+                  (setq message-count (1+ message-count)))
+                (haskell-process-set-response-cursor process cursor)
+                (let ((msg (format "Complete: cabal %s (%s compiler messages)"
+                                   (cl-caddr state)
+                                   message-count)))
+                  (haskell-interactive-mode-echo session msg)
+                  (when (= message-count 0)
+                    (haskell-interactive-mode-echo
+                     session
+                     "No compiler messages, dumping complete output:")
+                    (haskell-interactive-mode-echo session response))
+                  (haskell-mode-message-line msg)
+                  (when (and haskell-notify-p
+                             (fboundp 'notifications-notify))
+                    (notifications-notify
+                     :title (format "*%s*" (haskell-session-name (car state)))
+                     :body msg
+                     :app-name app-name
+                     :app-icon haskell-process-logo))))))))))))
 
 (defun haskell-process-echo-load-message (process buffer echo-in-repl th)
   "Echo a load message."
@@ -347,7 +311,6 @@ list of modules where missed IDENT was found."
          (modules (and modules-string (split-string modules-string ", "))))
     (cons modules modules-string)))
 
-;;;###autoload
 (defface haskell-error-face
   '((((supports :underline (:style wave)))
      :underline (:style wave :color "#dc322f"))
@@ -356,7 +319,6 @@ list of modules where missed IDENT was found."
   "Face used for marking error lines."
   :group 'haskell-mode)
 
-;;;###autoload
 (defface haskell-warning-face
   '((((supports :underline (:style wave)))
      :underline (:style wave :color "#b58900"))
@@ -365,7 +327,6 @@ list of modules where missed IDENT was found."
   "Face used for marking warning lines."
   :group 'haskell-mode)
 
-;;;###autoload
 (defface haskell-hole-face
   '((((supports :underline (:style wave)))
      :underline (:style wave :color "#6c71c4"))
@@ -553,11 +514,13 @@ When MODULE-BUFFER is non-NIL, paint error overlays."
              (line (plist-get location :line))
              (col1 (plist-get location :col)))
         (when (and module-buffer haskell-process-show-overlays)
-          (haskell-check-paint-overlay
-           module-buffer
-           (string= (file-truename (buffer-file-name module-buffer))
-                    (file-truename file))
-           line error-msg file type nil col1))
+          ;; conform default-directory to session current-dir for 'file-truename'
+          (let ((default-directory (haskell-session-current-dir session)))
+            (haskell-check-paint-overlay
+             module-buffer
+             (string= (file-truename (buffer-file-name module-buffer))
+                      (file-truename file))
+             line error-msg file type nil col1)))
         (if return-only
             (list :file file :line line :col col1 :msg error-msg :type type)
           (progn (funcall (cl-case type
@@ -575,15 +538,15 @@ When MODULE-BUFFER is non-NIL, paint error overlays."
                  t)))))))
 
 (defun haskell-interactive-show-load-message (session type module-name file-name echo th)
-  "Show the '(Compiling|Loading) X' message."
+  "Show the \\='(Compiling|Loading) X\\=' message."
   (let ((msg (concat
               (cl-ecase type
-                ('compiling
+                (compiling
                  (if haskell-interactive-mode-include-file-name
                      (format "Compiling: %s (%s)" module-name file-name)
                    (format "Compiling: %s" module-name)))
-                ('loading (format "Loading: %s" module-name))
-                ('import-cycle
+                (loading (format "Loading: %s" module-name))
+                (import-cycle
                  (format "Module has an import cycle: %s" module-name)))
               (if th " [TH]" ""))))
     (haskell-mode-message-line msg)

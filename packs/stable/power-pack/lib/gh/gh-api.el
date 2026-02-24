@@ -1,4 +1,4 @@
-;;; gh-api.el --- api definition for gh.el
+;;; gh-api.el --- api definition for gh.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2011  Yann Hodique
 
@@ -26,10 +26,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'json)
@@ -50,7 +46,6 @@
   :type 'function
   :group 'gh-api)
 
-;;;###autoload
 (defclass gh-api ()
   ((sync :initarg :sync :initform t)
    (cache :initarg :cache :initform nil)
@@ -67,7 +62,7 @@
   (apply 'logito-log (oref api :log) level tag string objects))
 
 (cl-defmethod initialize-instance ((api gh-api) &rest args)
-  (call-next-method))
+  (cl-call-next-method))
 
 (cl-defmethod gh-api-set-default-auth ((api gh-api) auth)
   (let ((auth (or (oref api :auth) auth))
@@ -98,7 +93,6 @@
   (let ((username (oref (oref api :auth) :username)))
     (funcall gh-api-username-filter username)))
 
-;;;###autoload
 (defclass gh-api-v3 (gh-api)
   ((data-format :initarg :data-format :initform :json))
   "Github API v3")
@@ -110,7 +104,7 @@
   :group 'gh-api)
 
 (cl-defmethod initialize-instance ((api gh-api-v3) &rest args)
-  (call-next-method)
+  (cl-call-next-method)
   (let ((gh-profile-current-profile (gh-profile-current-profile)))
     (oset api :profile (gh-profile-current-profile))
     (oset api :base (gh-profile-url))
@@ -118,11 +112,9 @@
                              (or (oref api :auth)
                                  (funcall gh-api-v3-authenticator "auth")))))
 
-;;;###autoload
 (defclass gh-api-request (gh-url-request)
   ((default-response-cls :allocation :class :initform gh-api-response)))
 
-;;;###autoload
 (defclass gh-api-response (gh-url-response)
   ())
 
@@ -136,14 +128,12 @@
   (encode-coding-string (json-encode-list json) 'utf-8))
 
 (cl-defmethod gh-url-response-set-data ((resp gh-api-response) data)
-  (call-next-method resp (gh-api-json-decode data)))
+  (cl-call-next-method resp (gh-api-json-decode data)))
 
-;;;###autoload
 (defclass gh-api-paged-request (gh-api-request)
   ((default-response-cls :allocation :class :initform gh-api-paged-response)
    (page-limit :initarg :page-limit :initform -1)))
 
-;;;###autoload
 (defclass gh-api-paged-response (gh-api-response)
   ())
 
@@ -158,7 +148,7 @@
 (cl-defmethod gh-url-response-set-data ((resp gh-api-paged-response) data)
   (let ((previous-data (oref resp :data))
         (next (cdr (assoc "next" (gh-api-paging-links resp)))))
-    (call-next-method)
+    (cl-call-next-method)
     (oset resp :data (append previous-data (oref resp :data)))
     (when (and next (not (equal 304 (oref resp :http-status))))
       (let* ((req (oref resp :-req))
@@ -241,7 +231,6 @@
                                     (oref req default-response-cls)
                                     :transform transformer))))))
 
-;;;###autoload
 (defclass gh-api-callback (gh-url-callback)
   ((cache :initarg :cache)
    (key :initarg :key)

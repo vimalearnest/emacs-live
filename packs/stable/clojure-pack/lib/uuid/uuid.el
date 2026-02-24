@@ -35,7 +35,7 @@ wackos."
   (let ((bits
          (apply           ; Note: Could use bit-vector under xemacs,
           'vector   ; but gnuemacs doesn't have it.
-          (cl-loop for i upto 127 collect (uuid-random-bit)))))
+          (loop for i upto 127 collect (uuid-random-bit)))))
     ;; Version field: byte 7, bits 7-4
     (aset bits 60 0)
     (aset bits 61 1)
@@ -55,7 +55,7 @@ wackos."
   (let* ((lsb (* bytenum 8))
          (msb (+ lsb 7))
          (val 0))
-    (cl-loop for bitnum from lsb to msb do
+    (loop for bitnum from lsb to msb do
           (let ((bit (aref uuid bitnum)))
             (setq val (+ bit (lsh val 1)))))
     val))

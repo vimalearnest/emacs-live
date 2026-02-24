@@ -129,7 +129,7 @@
 
 (ert-deftest haskell-syntactic-test-18a-multiline ()
   "Backtick operators multiline"
-  ;; strangely thins works in interactive session
+  ;; strangely this works in interactive session
   :expected-result :failed
   (check-properties
    '(" `"
@@ -143,7 +143,7 @@
   "Syntax for hierarchical modules when on the first line."
   ;; note that quite many things here are not consistent but for now
   ;; this test describes what it is. When on the first column
-  ;; font-lock thins we are defining (.) operator. Not good.
+  ;; font-lock thinks we are defining (.) operator. Not good.
   :expected-result :failed
   (check-properties
    '("A1.B.C"
@@ -986,6 +986,14 @@
    '(("Opt_WarnPartialTypeSignatures" t haskell-constructor-face)
      ("Cons2" t haskell-constructor-face)
      ("Cons3" t haskell-constructor-face))))
+
+(ert-deftest haskell-type-colors-33 ()
+  (check-properties
+   "import X qualified as Y"
+   '(("X" t haskell-constructor-face)
+     ("qualified" t haskell-keyword-face)
+     ("as" t haskell-keyword-face)
+     ("Y" t haskell-constructor-face))))
 
 (ert-deftest haskell-pattern-1 ()
   "Fontify the \"pattern\" keyword in contexts related to pattern synonyms."

@@ -1,6 +1,6 @@
-;;; test-ob-sqlite.el --- tests for ob-sqlite.el
+;;; test-ob-sqlite.el --- tests for ob-sqlite.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Eduardo Bellani
+;; Copyright (C) 2017, 2019  Eduardo Bellani
 
 ;; Author: Eduardo Bellani <ebellani@gmail.com>
 ;; Keywords: lisp
@@ -16,15 +16,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
-(org-test-for-executable "sqlite")
+(org-test-for-executable "sqlite3")
 (unless (featurep 'ob-sqlite)
-  (signal 'missing-test-dependency "Support for sqlite code blocks"))
+  (signal 'missing-test-dependency '("Support for sqlite code blocks")))
 
 (ert-deftest ob-sqlite/table-variables-with-commas ()
-  "Test of a table variable that contains commas. This garantees that this code path results in a valid CSV."
+  "Test of a table variable that contains commas. This guarantees that this code path results in a valid CSV."
   (should
    (equal '(("Mr Test A. Sql"
 	     "Minister for Science, Eternal Happiness, and Finance"))
@@ -39,7 +39,40 @@
   .import $tb TestTable
   select * from TestTable;
 #+end_src"
-	    (org-babel-next-src-block)
-	    (org-babel-execute-src-block)))))
+	   (org-babel-next-src-block)
+	   (org-babel-execute-src-block)))))
 
+(ert-deftest ob-sqlite/in-memory ()
+  "Test in-memory temporariness."
+  (should
+   (equal 0
+          (progn
+            (org-test-with-temp-text
+	     "#+BEGIN_SRC sqlite
+PRAGMA user_version = 1;
+#+END_SRC"
+	     (org-babel-execute-src-block))
+            (org-test-with-temp-text
+	     "#+BEGIN_SRC sqlite
+PRAGMA user_version;
+#+END_SRC"
+	     (org-babel-execute-src-block))))))
+
+(ert-deftest ob-sqlite/in-file ()
+  "Test in-file permanency."
+  (should
+   (equal 1
+          (let ((file (org-babel-temp-file "test" ".sqlite")))
+            (org-test-with-temp-text
+	     (format "#+BEGIN_SRC sqlite :db %s
+PRAGMA user_version = 1;
+#+END_SRC" file)
+	     (org-babel-execute-src-block))
+            (org-test-with-temp-text
+	     (format "#+BEGIN_SRC sqlite :db %s
+PRAGMA user_version;
+#+END_SRC" file)
+	     (org-babel-execute-src-block))))))
+
+(provide 'test-ob-sqlite)
 ;;; test-ob-sqlite.el ends here

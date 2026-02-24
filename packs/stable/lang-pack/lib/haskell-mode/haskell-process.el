@@ -77,7 +77,7 @@ Do not actually start any process.
 HPTYPE is the result of calling `'haskell-process-type`' function."
   (let ((session-name (haskell-session-name session)))
     (cl-ecase hptype
-      ('ghci
+      (ghci
        (append (list (format "Starting inferior GHCi process %s ..."
                              haskell-process-path-ghci)
                      session-name
@@ -86,20 +86,7 @@ HPTYPE is the result of calling `'haskell-process-type`' function."
                       (list
                        (append (haskell-process-path-to-list haskell-process-path-ghci)
                                haskell-process-args-ghci)))))
-      ('cabal-new-repl
-       (append (list (format "Starting inferior `cabal new-repl' process using %s ..."
-                             haskell-process-path-cabal)
-                     session-name
-                     nil)
-               (apply haskell-process-wrapper-function
-                      (list
-                       (append
-                        (haskell-process-path-to-list haskell-process-path-cabal)
-                        (list "new-repl")
-                        haskell-process-args-cabal-new-repl
-                        (let ((target (haskell-session-target session)))
-                          (if target (list target) nil)))))))
-      ('cabal-repl
+      (cabal-repl
        (append (list (format "Starting inferior `cabal repl' process using %s ..."
                              haskell-process-path-cabal)
                      session-name
@@ -112,7 +99,7 @@ HPTYPE is the result of calling `'haskell-process-type`' function."
                         haskell-process-args-cabal-repl
                         (let ((target (haskell-session-target session)))
                           (if target (list target) nil)))))))
-      ('stack-ghci
+      (stack-ghci
        (append (list (format "Starting inferior stack GHCi process using %s" haskell-process-path-stack)
                      session-name
                      nil)
@@ -218,7 +205,8 @@ HPTYPE is the result of calling `'haskell-process-type`' function."
     t))
 
 (defun haskell-process-send-string (process string)
-  "Try to send a string to the process's process. Ask to restart if it's not running."
+  "Try to send a string to the process's process.
+Ask to restart if it's not running."
   (let ((child (haskell-process-process process)))
     (if (equal 'run (process-status child))
         (let ((out (concat string "\n")))

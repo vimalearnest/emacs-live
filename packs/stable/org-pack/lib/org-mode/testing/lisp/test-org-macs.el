@@ -1,6 +1,6 @@
 ;;; test-org-macs.el --- Tests for Org Macs library  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Nicolas Goaziou
+;; Copyright (C) 2017, 2019  Nicolas Goaziou
 
 ;; Author: Nicolas Goaziou <mail@nicolasgoaziou.fr>
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -39,44 +39,37 @@
   ;; When nil, SEPARATORS matches any number of blank characters.
   (should (equal '("a" "b") (org-split-string "a \t\nb"))))
 
-(ert-deftest test-org/string-display ()
-  "Test `org-string-display' specifications."
-  (should (equal "a" (org-string-display "a")))
-  (should (equal "" (org-string-display "")))
+(ert-deftest test-org/string-width ()
+  "Test `org-string-width' specifications."
+  (should (= 1 (org-string-width "a")))
+  (should (= 0 (org-string-width "")))
   ;; Ignore invisible characters.
-  (should (equal "" (org-string-display #("a" 0 1 (invisible t)))))
-  (should (equal "b" (org-string-display #("ab" 0 1 (invisible t)))))
-  (should (equal "a" (org-string-display #("ab" 1 2 (invisible t)))))
-  (should (equal "ace" (org-string-display
-                        #("abcde" 1 2 (invisible t) 3 4 (invisible t)))))
+  (should (= 0 (org-string-width #("a" 0 1 (invisible t)))))
+  (should (= 1 (org-string-width #("ab" 0 1 (invisible t)))))
+  (should (= 1 (org-string-width #("ab" 1 2 (invisible t)))))
+  (should (= 3 (org-string-width
+		#("abcde" 1 2 (invisible t) 3 4 (invisible t)))))
   ;; Check if `invisible' value really means invisibility.
-  (should (equal "" (let ((buffer-invisibility-spec t))
-                      (org-string-display #("a" 0 1 (invisible foo))))))
-  (should (equal "" (let ((buffer-invisibility-spec '(foo)))
-                      (org-string-display #("a" 0 1 (invisible foo))))))
-  (should (equal "" (let ((buffer-invisibility-spec '((foo . t))))
-                      (org-string-display #("a" 0 1 (invisible foo))))))
-  (should (equal "a" (let ((buffer-invisibility-spec '(bar)))
-                       (org-string-display #("a" 0 1 (invisible foo))))))
+  (should (= 0 (let ((buffer-invisibility-spec t))
+                 (org-string-width #("a" 0 1 (invisible foo))))))
+  (should (= 0 (let ((buffer-invisibility-spec '(foo)))
+                 (org-string-width #("a" 0 1 (invisible foo))))))
+  (should (= 0 (let ((buffer-invisibility-spec '((foo . t))))
+                 (org-string-width #("a" 0 1 (invisible foo))))))
+  (should (= 1 (let ((buffer-invisibility-spec '(bar)))
+                 (org-string-width #("a" 0 1 (invisible foo))))))
   ;; Check `display' property.
-  (should (equal "abc" (org-string-display #("a" 0 1 (display "abc")))))
-  (should (equal "1abc3" (org-string-display #("1a3" 1 2 (display "abc")))))
+  (should (= 3 (org-string-width #("a" 0 1 (display "abc")))))
+  (should (= 5 (org-string-width #("1a3" 1 2 (display "abc")))))
   ;; `display' string can also contain invisible characters.
-  (should (equal "1ac3" (org-string-display
-			 #("123" 1 2 (display #("abc" 1 2 (invisible t)))))))
-  ;; Preserve other text properties when replacing with a display
-  ;; string.
-  (should
-   (eq 'foo
-       (get-text-property 1 'face
-			  (org-string-display
-			   #("123" 1 2 (display "abc" face foo))))))
-  ;; Also preserve `display' property in original string.
-  (should
-   (equal "abc"
-	  (let ((s #("123" 1 2 (display "abc" face foo))))
-	    (org-string-display s)
-	    (get-text-property 1 'display s)))))
+  (should (= 4 (org-string-width
+		#("123" 1 2 (display #("abc" 1 2 (invisible t)))))))
+  ;; Test `space' property in `display'.
+  (should (= 2 (org-string-width #(" " 0 1 (display (space :width 2))))))
+  ;; Test `wrap-prefix' property.
+  (should (= 2 (org-string-width #("ab" 0 2 (wrap-prefix "  ")))))
+  ;; Test `line-prefix' property.
+  (should (= 2 (org-string-width #("ab" 0 2 (line-prefix "  "))))))
 
 
 ;;; Regexp
@@ -113,6 +106,73 @@
   (should-not
    (org-test-with-temp-text "xx abc<point> xx"
      (org-in-regexp "abc" nil t))))
+
+;;; Template
+
+(ert-deftest test-org/fill-template ()
+  "Test `org-fill-template'"
+  (should
+   (string= "working"
+            (org-fill-template "%var-long"
+                               '(("var" . "broken")
+                                 ("var-long" . "working"))))))
+
+;;; Time
+
+(ert-deftest test-org-matcher-time ()
+  "Test `org-matcher-time'."
+  (let ((system-time-locale "en_US"))
+    (org-test-at-time "<2021-01-11 Mon 13:00>"
+      (should (equal (list 0 0 13 11 1 2021)
+                     (butlast (decode-time (org-matcher-time "<now>"))
+                              3)))
+      (should (equal (list 0 0 0 14 1 2021)
+                     (butlast (decode-time (org-matcher-time "<+3d>"))
+                              3)))
+      (should (equal (list 0 0 0 9 1 2021)
+                     (butlast (decode-time (org-matcher-time "<-2d>"))
+                              3)))
+      (should (equal (list 0 0 0 18 1 2021)
+                     (butlast (decode-time (org-matcher-time "<+1w>"))
+                              3)))
+      (should (equal (list 0 0 17 11 1 2021)
+                     (butlast (decode-time (org-matcher-time "<+4h>"))
+                              3)))
+      (should (equal (list 0 0 11 11 1 2021)
+                     (butlast (decode-time (org-matcher-time "<-2h>"))
+                              3)))
+      (should (equal (list 0 0 3 12 1 2021)
+                     (butlast (decode-time (org-matcher-time "<+14h>"))
+                              3))))))
+
+
+;;; Buffers
+
+(ert-deftest test-org-base-buffer-file-name ()
+  "Test `org-base-buffer-file-name'."
+  ;; Test direct buffer resolution
+  (org-test-with-temp-text-in-file
+   "File"
+   (let ((base-filename (buffer-file-name)))
+     ;; Confirm that we get the same answer whether we provide the buffer or use the default
+     (should (equal base-filename (org-base-buffer-file-name)))
+     (should (equal base-filename (org-base-buffer-file-name (current-buffer))))))
+  ;; Test indirect buffer resolution
+  (org-test-with-temp-text-in-file
+   "File with indirect buffer"
+   (let ((base-filename (buffer-file-name))
+         (base-buffer (current-buffer))
+         (indirect-test-buffer (make-indirect-buffer (current-buffer) "test")))
+     (set-buffer indirect-test-buffer)
+     ;; Confirm that we get the same answer for the default, the indirect buffer, and the base buffer
+     (should (equal base-filename (org-base-buffer-file-name)))
+     (should (equal base-filename (org-base-buffer-file-name base-buffer)))
+     (should (equal base-filename (org-base-buffer-file-name indirect-test-buffer)))
+     (kill-buffer indirect-test-buffer)))
+  ;; Test for a buffer with no associated file
+  (org-test-with-temp-text
+   "Buffer without file"
+   (should-not (org-base-buffer-file-name))))
 
 (provide 'test-org-macs)
 ;;; test-org-macs.el ends here

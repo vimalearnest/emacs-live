@@ -1,0 +1,7 @@
+/.eask/
+*.elc
+/dist/
+*-autoloads.*
+
+# OS generated
+.DS_Store

@@ -1,6 +1,6 @@
-;;; test-org-footnote.el --- Tests for org-footnote.el
+;;; test-org-footnote.el --- Tests for org-footnote.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2015  Nicolas Goaziou
+;; Copyright (C) 2012-2015, 2019  Nicolas Goaziou
 
 ;; Author: Nicolas Goaziou <mail at nicolasgoaziou dot fr>
 
@@ -15,9 +15,24 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
+
+(require 'org-test "../testing/org-test")
+(require 'org-footnote)
+
+(ert-deftest test-org-footnote/new-anon ()
+  "Test `org-footnote-new' specifications."
+  ;; `org-footnote-auto-label' is `anonymous'.
+  (should
+   (string-match-p
+    "Test\\[fn::\\]"
+    (org-test-with-temp-text "Test<point>"
+      (let ((org-footnote-auto-label 'anonymous)
+	    (org-footnote-section nil))
+	(org-footnote-new))
+      (buffer-string)))))
 
 (ert-deftest test-org-footnote/new ()
   "Test `org-footnote-new' specifications."
@@ -43,6 +58,17 @@
   (should-error
    (org-test-with-temp-text "<point>Test"
      (org-footnote-new)))
+  ;; ... but not when inserting anonymous or inline footnote
+  (should
+   (org-test-with-temp-text "<point>Test"
+     (let ((org-footnote-define-inline t))
+       (org-footnote-new)
+       t)))
+  (should
+   (org-test-with-temp-text "<point>Test"
+     (let ((org-footnote-auto-label 'anonymous))
+       (org-footnote-new)
+       t)))
   ;; Error at keywords.
   (should-error
    (org-test-with-temp-text "#+TIT<point>LE: value"
@@ -90,10 +116,62 @@
     (org-test-with-temp-text " *bold*<point>"
       (let ((org-footnote-auto-label t)) (org-footnote-new))
       (buffer-string))))
+  ;; Allow new footnotes at the start of a footnote definition.
+  (should
+   (string-match-p
+    "\\[fn:1\\]\\[fn:2\\]"
+    (org-test-with-temp-text "[fn:1]<point>"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should
+   (string-match-p
+    "\\[fn:1\\] \\[fn:2\\]"
+    (org-test-with-temp-text "[fn:1] <point>"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should
+   (string-match-p
+    "\\[fn:1\\]\\[fn:2\\]"
+    (org-test-with-temp-text "[fn:1]<point> \nParagraph"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should-error
+   (org-test-with-temp-text "[fn:<point>1]"
+     (let ((org-footnote-auto-label t)) (org-footnote-new))
+     (buffer-string)))
+  (should-error
+   (org-test-with-temp-text "<point>[fn:1]"
+     (let ((org-footnote-auto-label t)) (org-footnote-new))
+     (buffer-string)))
+  ;; Allow new footnotes in table cells.
+  (should
+   (string-match-p
+    " \\[fn:1\\]"
+    (org-test-with-temp-text "| <point> |"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should
+   (string-match-p
+    "|\\[fn:1\\]"
+    (org-test-with-temp-text "|<point> |"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should
+   (string-match-p
+    " \\[fn:1\\]"
+    (org-test-with-temp-text "| <point>|"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
+  (should
+   (string-match-p
+    " \\[fn:1\\]"
+    (org-test-with-temp-text "| contents   <point>|"
+      (let ((org-footnote-auto-label t)) (org-footnote-new))
+      (buffer-string))))
   ;; When creating a new footnote, move to its definition.
   (should
    (string=
-    "[fn:1] "
+    "[fn:1]"
     (org-test-with-temp-text "Text<point>"
       (let ((org-footnote-auto-label t)
 	    (org-footnote-auto-adjust nil))
@@ -138,7 +216,20 @@
 	  (org-test-with-temp-text
 	      "Paragraph<point>\n# Local Variables:\n# foo: t\n# End:"
 	    (let ((org-footnote-section "Footnotes")) (org-footnote-new))
-	    (buffer-string)))))
+	    (buffer-string))))
+  (should
+   (equal "Para[fn:1]
+* Footnotes
+:properties:
+:custom_id: id
+:end:
+
+\[fn:1]"
+          (org-test-with-temp-text
+              "Para<point>\n* Footnotes\n:properties:\n:custom_id: id\n:end:"
+            (let ((org-footnote-section "Footnotes"))
+              (org-footnote-new))
+            (org-trim (buffer-string))))))
 
 (ert-deftest test-org-footnote/delete ()
   "Test `org-footnote-delete' specifications."
@@ -231,7 +322,7 @@
   ;; anonymous footnotes.
   (should
    (equal
-    "Definition."
+    " Definition."
     (org-test-with-temp-text "Some text\n[fn:1] Definition."
       (org-footnote-goto-definition "1")
       (buffer-substring (point) (point-max)))))
@@ -241,6 +332,28 @@
     (org-test-with-temp-text "Some text[fn:label:definition]"
       (org-footnote-goto-definition "label")
       (buffer-substring (point) (point-max))))))
+
+(ert-deftest test-org-footnote/goto-previous-reference ()
+  "Test `org-footnote-goto-previous-reference' specifications."
+  ;; Error on unknown reference.
+  (should-error
+   (org-test-with-temp-text "No footnote reference"
+     (org-footnote-goto-previous-reference "1")))
+  ;; Error when trying to reach a reference outside narrowed part of
+  ;; buffer.
+  (should-error
+   (org-test-with-temp-text "Some text<point>\nReference[fn:1]."
+     (narrow-to-region (point-min) (point))
+     (org-footnote-goto-previous-reference "1")))
+  ;; Otherwise, move to closest reference from point.
+  (should
+   (org-test-with-temp-text "First reference[fn:1]\nReference[fn:1].<point>"
+     (org-footnote-goto-previous-reference "1")
+     (= (line-end-position) (point-max))))
+  (should
+   (org-test-with-temp-text "First reference[fn:1]\nReference[fn:1]."
+     (org-footnote-goto-previous-reference "1")
+     (= (line-beginning-position) (point-min)))))
 
 (ert-deftest test-org-footnote/sort ()
   "Test `org-footnote-sort' specifications."
@@ -421,6 +534,26 @@ Text[fn:1][fn:4]
 \[fn:2] Def 2[fn:3]
 
 \[fn:4] Def 4
+"
+      (let ((org-footnote-section nil)) (org-footnote-sort))
+      (buffer-string))))
+  ;; Handle cycles inside nested references
+  (should
+   (equal
+    "
+One [fn:2] two [fn:1]
+
+[fn:2] Two [fn:1]
+
+[fn:1] One [fn:2]
+"
+    (org-test-with-temp-text
+	"
+One [fn:2] two [fn:1]
+
+[fn:1] One [fn:2]
+
+[fn:2] Two [fn:1]
 "
       (let ((org-footnote-section nil)) (org-footnote-sort))
       (buffer-string))))
@@ -655,6 +788,6 @@ Paragraph[fn:foo][fn:bar]
 	    (let ((org-footnote-section nil)) (org-footnote-normalize))
 	    (buffer-string)))))
 
-
+
 (provide 'test-org-footnote)
 ;;; test-org-footnote.el ends here

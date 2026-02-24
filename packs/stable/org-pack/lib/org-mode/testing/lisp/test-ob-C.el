@@ -1,6 +1,6 @@
-;;; test-ob-C.el --- tests for ob-C.el
+;;; test-ob-C.el --- tests for ob-C.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2010-2014 Sergey Litvinov, Thierry Banel
+;; Copyright (c) 2010-2014, 2019 Sergey Litvinov, Thierry Banel
 ;; Authors: Sergey Litvinov, Thierry Banel
 
 ;; This file is not part of GNU Emacs.
@@ -16,14 +16,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (unless (featurep 'ob-C)
-  (signal 'missing-test-dependency "Support for C code blocks"))
-
-(ert-deftest ob-C/assert ()
-  (should t))
+  (signal 'missing-test-dependency '("Support for C code blocks")))
 
 (ert-deftest ob-C/simple-program ()
   "Hello world program."
@@ -32,61 +29,79 @@
 		      (org-babel-next-src-block 1)
 		      (should (= 42 (org-babel-execute-src-block))))))
 
+(ert-deftest ob-C/symbol-include ()
+  "Hello world program with unquoted :includes."
+  (if (executable-find org-babel-C++-compiler)
+      (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
+		      (org-babel-next-src-block 2)
+		      (should (= 42 (org-babel-execute-src-block))))))
+
 (ert-deftest ob-D/simple-program ()
   "Hello world program."
   (if (executable-find org-babel-D-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 2)
+		      (org-babel-next-src-block 3)
 		      (should (= 42 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-C/integer-var ()
   "Test of an integer variable."
   (if (executable-find org-babel-C++-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 3)
+		      (org-babel-next-src-block 4)
 		      (should (= 12 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-D/integer-var ()
   "Test of an integer variable."
   (if (executable-find org-babel-D-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 4)
+		      (org-babel-next-src-block 5)
 		      (should (= 12 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-C/two-integer-var ()
   "Test of two input variables"
   (if (executable-find org-babel-C++-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 5)
+		      (org-babel-next-src-block 6)
 		      (should (= 22 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-D/two-integer-var ()
   "Test of two input variables"
   (if (executable-find org-babel-D-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 6)
+		      (org-babel-next-src-block 7)
 		      (should (= 22 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-C/string-var ()
   "Test of a string input variable"
   (if (executable-find org-babel-C++-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 7)
+		      (org-babel-next-src-block 8)
 		      (should (equal "word 4" (org-babel-execute-src-block))))))
 
 (ert-deftest ob-D/string-var ()
   "Test of a string input variable"
   (if (executable-find org-babel-D-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 8)
+		      (org-babel-next-src-block 9)
 		      (should (equal "word 4" (org-babel-execute-src-block))))))
 
 (ert-deftest ob-C/preprocessor ()
   "Test of a string variable"
   (if (executable-find org-babel-C++-compiler)
       (org-test-at-id "fa6db330-e960-4ea2-ac67-94bb845b8577"
-		      (org-babel-next-src-block 9)
+		      (org-babel-next-src-block 10)
 		      (should (= 42 (org-babel-execute-src-block))))))
+
+(ert-deftest ob-C/float-var ()
+  "Test that floats are passed without unnecessary rounding."
+  (if (executable-find org-babel-C++-compiler)
+      (org-test-with-temp-text 
+"#+source: float_var
+#+begin_src cpp :var x=1.123456789012345678 :includes \"<iostream>\" :results silent
+double y = 1.123456789012345678;
+std::cout << (x == y);
+#+end_src"
+(should (= 1 (org-babel-execute-src-block))))))
 
 (ert-deftest ob-C/table ()
   "Test of a table output"
@@ -176,4 +191,14 @@
 				 ("Friday" "friday"))
 			       (org-babel-execute-src-block))))))
 
+(ert-deftest ob-C/ouput-doublequotes ()
+  "Double quotes not swallowed in raw output"
+  (if (executable-find org-babel-C++-compiler)
+      (org-test-at-id "9386490b-4063-4400-842c-4a634edbedf5"
+                      (org-babel-next-src-block 1)
+                      (should (equal
+                               "\"line 1\"\n\"line 2\"\n\"line 3\"\n"
+                               (org-babel-execute-src-block))))))
+
+(provide 'test-ob-C)
 ;;; test-ob-C.el ends here

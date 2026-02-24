@@ -1,5 +1,10 @@
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))
 
+DOMAIN ?= magit.vc
+
+PKG  = magit
+PKGS = magit magit-section
+
 ## User options ######################################################
 #
 # You can override these settings in "config.mk" or on the command
@@ -18,7 +23,6 @@ sharedir ?= $(PREFIX)/share
 lispdir  ?= $(sharedir)/emacs/site-lisp/magit
 infodir  ?= $(sharedir)/info
 docdir   ?= $(sharedir)/doc/magit
-statsdir ?= $(TOP)/Documentation/stats
 
 CP       ?= install -p -m 644
 MKDIR    ?= install -p -m 755 -d
@@ -26,152 +30,220 @@ RMDIR    ?= rm -rf
 TAR      ?= tar
 SED      ?= sed
 
-EMACSBIN ?= emacs
-BATCH     = $(EMACSBIN) -Q --batch $(LOAD_PATH)
+EMACS       ?= emacs
+EMACS_ARGS  ?=
+EMACS_Q_ARG ?= -Q
+EMACS_BATCH ?= $(EMACS) $(EMACS_Q_ARG) --batch $(EMACS_ARGS) $(LOAD_PATH)
+EMACS_ORG   ?= $(EMACS) $(EMACS_Q_ARG) --batch $(EMACS_ARGS) $(ORG_LOAD_PATH)
+EMACS_INTR  ?= $(EMACS) $(EMACS_Q_ARG) $(EMACS_ARGS) $(LOAD_PATH)
+
+LISP_EXTRA_TARGETS ?= check-declare
 
 INSTALL_INFO     ?= $(shell command -v ginstall-info || printf install-info)
 MAKEINFO         ?= makeinfo
-MANUAL_HTML_ARGS ?= --css-ref /assets/page.css
+MANUAL_HTML_ARGS ?= --css-ref https://$(DOMAIN)/assets/page.css
+
+GITSTATS      ?= gitstats
+GITSTATS_DIR  ?= $(TOP)docs/stats
+GITSTATS_ARGS ?= -c style=https://magit.vc/assets/stats.css \
+                 -c max_authors=180 -c graph_max_authors=7
 
 ## Files #############################################################
 
-PKG       = magit
-PACKAGES  = magit git-commit
+ORGPAGES  = $(addsuffix .org,$(PKGS))
+TEXIPAGES = $(addsuffix .texi,$(PKGS))
+INFOPAGES = $(addsuffix .info,$(PKGS))
+HTMLFILES = $(addsuffix .html,$(PKGS))
+HTMLTOPS  = $(addsuffix /index.html,$(PKGS))
+HTMLDIRS  = $(PKGS)
+PDFFILES  = $(addsuffix .pdf,$(PKGS))
+EPUBFILES = $(addsuffix .epub,$(PKGS))
 
-TEXIPAGES = $(addsuffix .texi,$(filter-out git-commit,$(PACKAGES)))
-INFOPAGES = $(addsuffix .info,$(filter-out git-commit,$(PACKAGES)))
-HTMLFILES = $(addsuffix .html,$(filter-out git-commit,$(PACKAGES)))
-HTMLDIRS  = $(filter-out git-commit,$(PACKAGES))
-PDFFILES  = $(addsuffix .pdf,$(filter-out git-commit,$(PACKAGES)))
+# When making changes here, also update "<nongnu.git>/elpa-packages".
 
 ELS  = git-commit.el
-ELS += magit-utils.el
 ELS += magit-section.el
+ELS += magit-base.el
 ELS += magit-git.el
 ELS += magit-mode.el
 ELS += magit-margin.el
 ELS += magit-process.el
+ELS += magit-transient.el
 ELS += magit-autorevert.el
 ELS += magit-core.el
 ELS += magit-diff.el
 ELS += magit-log.el
 ELS += magit-wip.el
+ELS += magit-reflog.el
 ELS += magit-apply.el
 ELS += magit-repos.el
 ELS += magit.el
 ELS += magit-status.el
 ELS += magit-refs.el
 ELS += magit-files.el
-ELS += magit-collab.el
 ELS += magit-reset.el
 ELS += magit-branch.el
 ELS += magit-merge.el
 ELS += magit-tag.el
 ELS += magit-worktree.el
 ELS += magit-notes.el
-ELS += magit-obsolete.el
 ELS += magit-sequence.el
 ELS += magit-commit.el
 ELS += magit-remote.el
+ELS += magit-clone.el
+ELS += magit-fetch.el
+ELS += magit-pull.el
+ELS += magit-push.el
+ELS += magit-patch.el
 ELS += magit-bisect.el
 ELS += magit-stash.el
 ELS += magit-blame.el
+ELS += magit-sparse-checkout.el
 ELS += magit-submodule.el
 ELS += magit-subtree.el
 ELS += magit-ediff.el
+ELS += magit-gitignore.el
+ELS += magit-bundle.el
 ELS += magit-extras.el
+ELS += magit-dired.el
 ELS += git-rebase.el
-ELS += magit-imenu.el
 ELS += magit-bookmark.el
 ELCS = $(ELS:.el=.elc)
-ELMS = magit.el $(filter-out $(addsuffix .el,$(PACKAGES)),$(ELS))
-ELGS = magit-autoloads.el magit-version.el
 
 ## Versions ##########################################################
 
-VERSION ?= $(shell test -e $(TOP).git && git describe --tags --abbrev=0)
+VERSION ?= $(shell \
+  test -e $(TOP).git && \
+  git describe --tags --abbrev=0 --always | cut -c2-)
+REVDESC := $(shell test -e $(TOP).git && git describe --tags)
 
-ASYNC_VERSION       = 1.9.2
-DASH_VERSION        = 2.13.0
-GHUB_VERSION        = 2.0.0
-GIT_COMMIT_VERSION  = 2.12.0
-LET_ALIST_VERSION   = 1.0.5
-MAGIT_POPUP_VERSION = 2.12.3
-WITH_EDITOR_VERSION = 2.7.2
+EMACS_VERSION = 28.1
 
-ASYNC_MELPA_SNAPSHOT       = 20170823
-DASH_MELPA_SNAPSHOT        = 20170810
-GHUB_MELPA_SNAPSHOT        = 20180328
-GIT_COMMIT_MELPA_SNAPSHOT  = 20180329
-MAGIT_POPUP_MELPA_SNAPSHOT = 20180329
-WITH_EDITOR_MELPA_SNAPSHOT = 20180318
-
-EMACS_VERSION = 24.4
-
-EMACSOLD := $(shell $(BATCH) --eval \
+EMACS_OLD := $(shell $(EMACS_BATCH) --eval \
   "(and (version< emacs-version \"$(EMACS_VERSION)\") (princ \"true\"))")
-ifeq "$(EMACSOLD)" "true"
+ifeq "$(EMACS_OLD)" "true"
   $(error At least version $(EMACS_VERSION) of Emacs is required)
 endif
 
 ## Load-Path #########################################################
 
+# Remember to also update magit-emacs-Q-command!
+
 ifndef LOAD_PATH
 
-ELPA_DIR ?= $(HOME)/.emacs.d/elpa
-
-DASH_DIR ?= $(shell \
-  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/dash-[.0-9]*' 2> /dev/null | \
-  sort | tail -n 1)
-ifeq "$(DASH_DIR)" ""
-  DASH_DIR = $(TOP)../dash
+USER_EMACS_DIR = $(HOME)/.emacs.d
+ifeq "$(wildcard $(USER_EMACS_DIR))" ""
+  XDG_CONFIG_DIR = $(or $(XDG_CONFIG_HOME),$(HOME)/.config)
+  ifneq "$(wildcard $(XDG_CONFIG_DIR)/emacs)" ""
+    USER_EMACS_DIR = $(XDG_CONFIG_DIR)/emacs
+  endif
 endif
 
-GHUB_DIR ?= $(shell \
-  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/ghub-[.0-9]*' 2> /dev/null | \
+ELPA_DIR ?= $(USER_EMACS_DIR)/elpa
+
+COMPAT_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/compat-[.0-9]*' 2> /dev/null | \
   sort | tail -n 1)
-ifeq "$(GHUB_DIR)" ""
-  GHUB_DIR = $(TOP)../ghub
+ifeq "$(COMPAT_DIR)" ""
+  COMPAT_DIR = $(TOP)../compat
 endif
 
-MAGIT_POPUP_DIR ?= $(shell \
-  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/magit-popup-[.0-9]*' 2> /dev/null | \
+COND_LET_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/cond-let-[.0-9]*' 2> /dev/null | \
   sort | tail -n 1)
-ifeq "$(MAGIT_POPUP_DIR)" ""
-  MAGIT_POPUP_DIR = $(TOP)../magit-popup
+ifeq "$(COND_LET_DIR)" ""
+  COND_LET_DIR = $(TOP)../cond-let
+endif
+
+LLAMA_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/llama-[.0-9]*' 2> /dev/null | \
+  sort | tail -n 1)
+ifeq "$(LLAMA_DIR)" ""
+  LLAMA_DIR = $(TOP)../llama
+endif
+
+SEQ_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/seq-[.0-9]*' 2> /dev/null | \
+  sort | tail -n 1)
+ifeq "$(SEQ_DIR)" ""
+  SEQ_DIR = $(TOP)../seq
+endif
+
+TRANSIENT_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/transient-[.0-9]*' 2> /dev/null | \
+  sort | tail -n 1)
+ifeq "$(TRANSIENT_DIR)" ""
+  TRANSIENT_DIR = $(TOP)../transient/lisp
 endif
 
 WITH_EDITOR_DIR ?= $(shell \
   find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/with-editor-[.0-9]*' 2> /dev/null | \
   sort | tail -n 1)
 ifeq "$(WITH_EDITOR_DIR)" ""
-  WITH_EDITOR_DIR = $(TOP)../with-editor
+  WITH_EDITOR_DIR = $(TOP)../with-editor/lisp
 endif
 
-SYSTYPE := $(shell $(EMACSBIN) -Q --batch --eval "(princ system-type)")
+MAGIT_SECTION_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/magit-section-[.0-9]*' 2> /dev/null | \
+  sort | tail -n 1)
+
+SYSTYPE := $(shell $(EMACS) -Q --batch --eval "(princ system-type)")
 ifeq ($(SYSTYPE), windows-nt)
   CYGPATH := $(shell cygpath --version 2>/dev/null)
 endif
 
-LOAD_PATH = -L $(TOP)/lisp
+LOAD_PATH = -L .
+
+# When making changes here, then don't forget to adjust DEPS below,
+# ".github/ISSUE_TEMPLATE/bug_report.md", `magit-emacs-Q-command'
+# and the "Installing from the Git Repository" info node accordingly.
+# Also run "rgrep \b<another-package\b", to find other places where
+# a newly added dependency might have to be mentioned as well.  Also
+# remember that DEPS of packages that depend on Magit also have to
+# be updated.
 
 ifdef CYGPATH
-  LOAD_PATH += -L $(shell cygpath --mixed $(DASH_DIR))
-  LOAD_PATH += -L $(shell cygpath --mixed $(GHUB_DIR))
-  LOAD_PATH += -L $(shell cygpath --mixed $(MAGIT_POPUP_DIR))
+  LOAD_PATH += -L $(shell cygpath --mixed $(COMPAT_DIR))
+  LOAD_PATH += -L $(shell cygpath --mixed $(COND_LET_DIR))
+  LOAD_PATH += -L $(shell cygpath --mixed $(LLAMA_DIR))
+  LOAD_PATH += -L $(shell cygpath --mixed $(SEQ_DIR))
+  LOAD_PATH += -L $(shell cygpath --mixed $(TRANSIENT_DIR))
   LOAD_PATH += -L $(shell cygpath --mixed $(WITH_EDITOR_DIR))
+  ifneq "$(MAGIT_SECTION_DIR)" ""
+    LOAD_PATH += -L $(shell cygpath --mixed $(MAGIT_SECTION_DIR))
+  endif
 else
-  LOAD_PATH += -L $(DASH_DIR)
-  LOAD_PATH += -L $(GHUB_DIR)
-  LOAD_PATH += -L $(MAGIT_POPUP_DIR)
+  LOAD_PATH += -L $(COMPAT_DIR)
+  LOAD_PATH += -L $(COND_LET_DIR)
+  LOAD_PATH += -L $(LLAMA_DIR)
+  LOAD_PATH += -L $(SEQ_DIR)
+  LOAD_PATH += -L $(TRANSIENT_DIR)
   LOAD_PATH += -L $(WITH_EDITOR_DIR)
+  ifneq "$(MAGIT_SECTION_DIR)" ""
+    LOAD_PATH += -L $(MAGIT_SECTION_DIR)
+  endif
 endif
 
 endif # ifndef LOAD_PATH
 
-ifndef ORG_LOAD_PATH
-ORG_LOAD_PATH  = $(LOAD_PATH)
-ORG_LOAD_PATH += -L ../../org/lisp
-ORG_LOAD_PATH += -L ../../org/contrib/lisp
-ORG_LOAD_PATH += -L ../../ox-texinfo+
-endif
+ORG_LOAD_PATH ?= -L ../../org/lisp
+
+## Dependencies ######################################################
+
+# This isn't used by make, but is needed for the Compile ci workflow.
+
+DEPS  = compat
+DEPS += cond-let
+DEPS += llama
+DEPS += seq
+DEPS += transient/lisp
+DEPS += with-editor/lisp
+
+## Publish ###########################################################
+
+DOCBOOK_XSL ?= /usr/share/xml/docbook/stylesheet/docbook-xsl/epub/docbook.xsl
+
+EPUBTRASH = epub.xml META-INF OEBPS
+
+RCLONE      ?= rclone
+RCLONE_ARGS ?= -v

@@ -1,4 +1,4 @@
-;;; gh-auth.el --- authentication for gh.el
+;;; gh-auth.el --- authentication for gh.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2011  Yann Hodique
 
@@ -26,10 +26,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'gh-profile)
@@ -88,23 +84,22 @@
                              :token))))
         (setq token (or tok (read-string "GitHub OAuth token: ")))
         (gh-set-config "oauth-token" token)))
+    (when (functionp token) (setq token (funcall token)))
     (gh-auth-remember profile :token token)
     token))
 
-;;;###autoload
 (defclass gh-authenticator ()
   ((username :initarg :username :initform nil))
   "Abstract authenticator")
 
 (cl-defmethod initialize-instance ((auth gh-authenticator) &rest args)
-  (call-next-method)
+  (cl-call-next-method)
   (or (oref auth :username)
       (oset auth :username (gh-auth-get-username))))
 
 (cl-defmethod gh-auth-modify-request ((auth gh-authenticator) req)
   req)
 
-;;;###autoload
 (defclass gh-auth-2fa-callback (gh-url-callback)
   ((req :initarg :req :initform nil))
   "2-factor callback")
@@ -124,7 +119,6 @@
                               (cons otp-header otp))
           (gh-url-run-request req resp))))))
 
-;;;###autoload
 (defclass gh-password-authenticator (gh-authenticator)
   ((password :initarg :password :protection :private :initform nil)
    (remember :allocation :class :initform t)
@@ -133,7 +127,7 @@
   "Password-based authenticator")
 
 (cl-defmethod initialize-instance ((auth gh-password-authenticator) &rest args)
-  (call-next-method)
+  (cl-call-next-method)
   (or (oref auth :password)
       (oset auth :password (gh-auth-get-password (oref auth remember)))))
 
@@ -149,13 +143,12 @@
                       (make-instance (oref auth 2fa-cls) :req req))
   req)
 
-;;;###autoload
 (defclass gh-oauth-authenticator (gh-authenticator)
   ((token :initarg :token :protection :private :initform nil))
   "Oauth-based authenticator")
 
 (cl-defmethod initialize-instance ((auth gh-oauth-authenticator) &rest args)
-  (call-next-method)
+  (cl-call-next-method)
   (or (oref auth :token)
       (oset auth :token (gh-auth-get-oauth-token))))
 

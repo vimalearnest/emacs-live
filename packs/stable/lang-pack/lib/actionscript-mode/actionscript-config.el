@@ -37,7 +37,7 @@
 	"Return a new string where all occurrences of oldchar
 have been replaced with newchar."
 	(let ((new-string (copy-sequence string)))
-		(cl-do ((i 0 (1+ i)))
+		(do ((i 0 (1+ i)))
 				((= i (length new-string)) nil)
 			(let ((x (aref new-string i)))
 				(when (char-equal x oldchar)
@@ -143,5 +143,4 @@ with a directory named 'as' from which it builds package names."
     (visit-tags-table (concat default-directory "/TAGS"))))
 
 ;; Keybindings
-(define-key actionscript-mode-map [f5] 'as-print-func-info)
 (define-key actionscript-mode-map "\C-c\C-t" 'as-insert-trace)

@@ -1,17 +1,16 @@
-;;; magit-core.el --- core functionality  -*- lexical-binding: t -*-
+;;; magit-core.el --- Core functionality  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2010-2018  The Magit Project Contributors
-;;
-;; You should have received a copy of the AUTHORS.md file which
-;; lists all contributors.  If not, see http://magit.vc/authors.
+;; Copyright (C) 2008-2026 The Magit Project Contributors
 
-;; Author: Jonas Bernoulli <jonas@bernoul.li>
-;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+;; Author: Jonas Bernoulli <emacs.magit@jonas.bernoulli.dev>
+;; Maintainer: Jonas Bernoulli <emacs.magit@jonas.bernoulli.dev>
 
-;; Magit is free software; you can redistribute it and/or modify it
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; Magit is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 3, or (at your option)
-;; any later version.
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
 ;;
 ;; Magit is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
@@ -19,7 +18,7 @@
 ;; License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with Magit.  If not, see http://www.gnu.org/licenses.
+;; along with Magit.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -30,14 +29,15 @@
 
 ;;; Code:
 
-(require 'magit-popup)
-(require 'magit-utils)
-(require 'magit-section)
+(require 'magit-base)
 (require 'magit-git)
 (require 'magit-mode)
 (require 'magit-margin)
 (require 'magit-process)
+(require 'magit-transient)
 (require 'magit-autorevert)
+
+;;; Options
 
 (defgroup magit nil
   "Controlling Git from Emacs."
@@ -59,25 +59,12 @@ Each of these options falls into one or more of these categories:
   :group 'magit)
 
 (defgroup magit-miscellaneous nil
-  "Miscellanous Magit options."
+  "Miscellaneous Magit options."
   :group 'magit)
 
 (defgroup magit-commands nil
   "Options controlling behavior of certain commands."
   :group 'magit)
-
-(defgroup magit-git-arguments nil
-  "Options controlling what arguments are passed to Git.
-
-Most of these options can be set using the respective popup,
-and it is recommended that you do that because then you can
-be certain that Magit supports the arguments that you select.
-
-An option `magit-NAME-argument' specifies the arguments that
-are enabled by default by the popup `magit-NAME-popup'."
-  :link '(info-link "(magit-popup)Customizing Existing Popups")
-  :link '(info-link "(magit-popup)Usage")
-  :group 'magit-commands)
 
 (defgroup magit-modes nil
   "Modes used or provided by Magit."
@@ -99,16 +86,19 @@ are enabled by default by the popup `magit-NAME-popup'."
   :group 'magit
   :group 'faces)
 
+(custom-add-to-group 'magit-faces 'diff-refine-added   'custom-face)
+(custom-add-to-group 'magit-faces 'diff-refine-removed 'custom-face)
+
 (defgroup magit-extensions nil
   "Extensions to Magit."
   :group 'magit)
 
-(custom-add-to-group 'magit-modes   'magit-popup       'custom-group)
-(custom-add-to-group 'magit-faces   'magit-popup-faces 'custom-group)
 (custom-add-to-group 'magit-modes   'git-commit        'custom-group)
 (custom-add-to-group 'magit-faces   'git-commit-faces  'custom-group)
 (custom-add-to-group 'magit-modes   'git-rebase        'custom-group)
 (custom-add-to-group 'magit-faces   'git-rebase-faces  'custom-group)
+(custom-add-to-group 'magit         'magit-section     'custom-group)
+(custom-add-to-group 'magit-faces   'magit-section-faces 'custom-group)
 (custom-add-to-group 'magit-process 'with-editor       'custom-group)
 
 (defgroup magit-related nil
@@ -128,5 +118,17 @@ are enabled by default by the popup `magit-NAME-popup'."
 (custom-add-to-group 'magit-related 'smerge-refine-ignore-whitespace 'custom-variable)
 (custom-add-to-group 'magit-related 'vc-follow-symlinks 'custom-variable)
 
+;;; _
 (provide 'magit-core)
+;; Local Variables:
+;; read-symbol-shorthands: (
+;;   ("and$"         . "cond-let--and$")
+;;   ("and>"         . "cond-let--and>")
+;;   ("and-let"      . "cond-let--and-let")
+;;   ("if-let"       . "cond-let--if-let")
+;;   ("when-let"     . "cond-let--when-let")
+;;   ("while-let"    . "cond-let--while-let")
+;;   ("match-string" . "match-string")
+;;   ("match-str"    . "match-string-no-properties"))
+;; End:
 ;;; magit-core.el ends here

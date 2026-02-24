@@ -1,6 +1,6 @@
-;;; test-ob-R.el --- tests for ob-R.el
+;;; test-property-inheritance.el --- tests of property inheritance  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2011-2014 Eric Schulte
+;; Copyright (c) 2011-2014, 2019 Eric Schulte
 ;; Authors: Eric Schulte
 
 ;; This file is not part of GNU Emacs.
@@ -16,7 +16,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (defmacro test-org-in-property-buffer (&rest body)
@@ -45,6 +45,5 @@
    (org-babel-next-src-block 3)
    (should (= 6 (org-babel-execute-src-block)))))
 
-(provide 'test-ob-R)
-
-;;; test-ob-R.el ends here
+(provide 'test-property-inheritance)
+;;; test-property-inheritance.el ends here

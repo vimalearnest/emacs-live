@@ -14,10 +14,10 @@ do so.
 * Open an issue with a descriptive title and a summary in grammatically correct,
   complete sentences.
 * Mention your Emacs version and operating system.
-* Mention `clojure-mode`'s version info (`M-x clojure-mode-version-info`), e.g.:
+* Mention `clojure-mode`'s version info (`M-x clojure-mode-display-version`), e.g.:
 
 ```el
-clojure-mode (version 2.1.1)
+clojure-mode (version 5.20.0)
 ```
 
 * Include any relevant code to the issue summary.
@@ -34,11 +34,18 @@ clojure-mode (version 2.1.1)
 * [Squash related commits together][5].
 * Open a [pull request][4] that relates to *only* one subject with a clear title
 and description in grammatically correct, complete sentences.
-* When applicable, attach ERT unit tests.
+* When applicable, attach ERT unit tests. See below for instructions on running the tests.
+
+## Development setup
+
+1. Fork and clone the repository.
+1. Install [Eldev][7].
+1. Run `make all` to compile, lint and run the tests.
 
 [1]: https://github.com/clojure-emacs/clojure-mode/issues
-[2]: http://gun.io/blog/how-to-github-fork-branch-and-pull-request
-[3]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
-[4]: https://help.github.com/articles/using-pull-requests
-[5]: http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html
+[2]: https://gun.io/blog/how-to-github-fork-branch-and-pull-request
+[3]: https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+[4]: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests
+[5]: https://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html
 [6]: https://github.com/clojure-emacs/clojure-mode/blob/master/CHANGELOG.md
+[7]: https://github.com/emacs-eldev/eldev

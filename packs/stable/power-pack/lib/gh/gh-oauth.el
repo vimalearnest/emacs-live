@@ -1,4 +1,4 @@
-;;; gh-oauth.el --- oauth module for gh.el
+;;; gh-oauth.el --- oauth module for gh.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2012  Yann Hodique
 
@@ -26,31 +26,24 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-;;;###autoload
 (require 'eieio)
 
 (require 'gh-api)
 (require 'gh-auth)
 (require 'gh-common)
 
-;;;###autoload
 (defclass gh-oauth-api (gh-api-v3)
   ((auth-cls :allocation :class :initform gh-oauth-authorization))
   "OAuth API")
 
-;;;###autoload
 (defclass gh-oauth-password-authenticator (gh-password-authenticator)
   ((remember :allocation :class :initform nil)))
 
 (cl-defmethod initialize-instance ((api gh-oauth-api) &rest args)
   ;; force password authentication for this API
   (let ((gh-api-v3-authenticator 'gh-oauth-password-authenticator))
-    (call-next-method)))
+    (cl-call-next-method)))
 
-;;;###autoload
 (gh-defclass gh-oauth-authorization (gh-ref-object)
   ((scopes :initarg :scopes)
    (token :initarg :token)
@@ -58,7 +51,6 @@
    (updated-at :initarg :updated-at)
    (created-at :initarg :created-at)))
 
-;;;###autoload
 (gh-defclass gh-oauth-app (gh-object)
   ((url :initarg :url)
    (name :initarg :name)))

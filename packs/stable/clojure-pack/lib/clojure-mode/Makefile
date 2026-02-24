@@ -1,34 +1,17 @@
-CASK = cask
-export EMACS ?= emacs
-EMACSFLAGS =
-TESTFLAGS =
-
-PKGDIR := $(shell EMACS=$(EMACS) $(CASK) package-directory)
-
-SRCS = $(wildcard *.el)
-OBJS = $(SRCS:.el=.elc)
-
-.PHONY: compile test clean
-
-elpa:
-	$(CASK) install
-	$(CASK) update
-	touch $@
-
-compile: $(OBJS)
+.PHONY: clean compile lint test all
+.DEFAULT_GOAL := all
 
 clean:
-	rm -f $(OBJS)
+	eldev clean
 
-test: $(PKGDIR)
-	$(CASK) exec ert-runner $(TESTFLAGS)
+lint: clean
+	eldev lint -c
 
-test-checks:
-	$(CASK) exec $(EMACS) --no-site-file --no-site-lisp --batch \
-		-l test/test-checks.el ./
+# Checks for byte-compilation warnings.
+compile: clean
+	 eldev -dtT compile --warnings-as-errors
 
-test-bytecomp: $(SRCS:.el=.elc-test)
+test: clean
+	eldev -dtT -p test
 
-%.elc-test: %.el elpa
-	$(CASK) exec $(EMACS) --no-site-file --no-site-lisp --batch \
-		-l test/clojure-mode-bytecomp-warnings.el $
+all: clean compile lint test

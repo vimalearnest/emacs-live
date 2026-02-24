@@ -1,11 +1,14 @@
 [![MELPA](http://melpa.org/packages/clj-refactor-badge.svg)](http://melpa.org/#/clj-refactor)
 [![MELPA Stable](http://stable.melpa.org/packages/clj-refactor-badge.svg)](http://stable.melpa.org/#/clj-refactor)
-[![Build Status](https://secure.travis-ci.org/clojure-emacs/clj-refactor.el.png?branch=master)](http://travis-ci.org/clojure-emacs/clj-refactor.el)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/clojure-emacs/refactor-nrepl?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![circleci][badge-circleci]][circleci]
+
+[badge-circleci]: https://circleci.com/gh/clojure-emacs/clj-refactor.el.svg?style=svg
+[circleci]: https://circleci.com/gh/clojure-emacs/clj-refactor.el
 
 # clj-refactor.el
 
-`clj-refactor` provides refactoring support for Clojure projects.
+`clj-refactor` provides powerful refactoring functionality for Clojure projects. It complements
+the refactoring functionality you'd find in [clojure-mode](https://github.com/clojure-emacs/clojure-mode) and [CIDER](https://github.com/clojure-emacs/cider).
 
 Here's a small teaser, helping you add a missing libspec:
 
@@ -19,9 +22,17 @@ It's available on [MELPA](http://melpa.org/) and [MELPA Stable](http://stable.me
 
     M-x package-install clj-refactor
 
+#### Better IDO completions
+
+If you are a IDO user, you will get better completions by installing the [`ido-completing-read+`](https://github.com/DarwinAwardWinner/ido-completing-read-plus) package:
+
+    M-x package-install ido-completing-read+
+
+...if you use a framework other than IDO, for best results, please check that it can take over `completing-read` automatically. 
+
 ## Setup
 
-```el
+```emacs-lisp
 (require 'clj-refactor)
 
 (defun my-clojure-mode-hook ()
@@ -47,8 +58,8 @@ Either in your project's `project.clj` or in the `:user`
 profile found at `~/.lein/profiles.clj`:
 
 ```clojure
-:plugins [[refactor-nrepl "2.3.1"]
-          [cider/cider-nrepl "0.14.0"]]
+:plugins [[refactor-nrepl "3.10.0"]
+          [cider/cider-nrepl "0.45.0"]]
 ```
 
 Check out the much longer
@@ -59,7 +70,25 @@ page in the wiki for a less opinionated approach.
 behavior of various commands.  You can read more about that
 [here](https://github.com/clojure-emacs/clj-refactor.el/wiki#customization).
 
-### In case `refactor-nrepl` used for advanced refactorings
+### Compatibility
+
+clj-refactor | refactor-nrepl | CIDER       | Clojure | Java |
+-------------|----------------|-------------|---------|------|
+2.4.0        |  2.4.0         | 0.17, 0.18  | 1.7+    | 8+   |
+2.5.0        |  2.5.0         | 0.24        | 1.8+    | 8+   |
+3.0.0+       |  3.0.0+        | 1.0         | 1.9+    | 11+  |
+
+### Middleware
+
+Most users will not need to worry about this, but if you wish to configure middleware yourself, the name of the middleware is:
+
+> `refactor-nrepl.middleware/wrap-refactor`
+
+Unlike `cider-nrepl` which defines many middleware with a handful of related
+ops, `refactor-repl` defines a single middleware which houses all of the provided nREPL
+ops.
+
+### In case `refactor-nrepl` is used for advanced (AST-based) refactorings
 
 The [analyzer](https://github.com/clojure/tools.analyzer)
 `refactor-nrepl` uses needs to eval the code too in order to be able
@@ -107,17 +136,9 @@ You'll find the repo at:
 
     https://github.com/clojure-emacs/clj-refactor.el
 
-To fetch the test dependencies, install
-[cask](https://github.com/cask/cask) if you haven't already,
-then:
-
-    $ cd /path/to/clj-refactor
-    $ cask
-
 Run the tests with:
 
-    $ ./run-tests.sh
-
+    $ make test
 
 Before submitting a patch, or a pull request, make sure all tests are
 passing and that your patch is in line with the [contribution
@@ -125,10 +146,24 @@ guidelines](.github/CONTRIBUTING.md).
 
 Thanks to [everyone](https://github.com/clojure-emacs/clj-refactor.el/graphs/contributors) who's contributed so far!
 
+## Get Help
+
+Due to clj-refactor's kinship with CIDER, you can get help for it
+in most CIDER-related support channels.
+
+### Slack
+
+CIDER has an official [Clojurians Slack](https://clojurians.slack.com/) - `#cider`. The channel is very active and is a great way to
+get a handle on some of the maintainers and interact with other CIDER/clj-refactor
+users. If you need an invite you can go [here](http://clojurians.net/).
+
+There's also another channel named `#emacs` for generic Emacs discussions.
+
 ## License
 
-Copyright © 2012-2017 Magnar Sveen
-Copyright © 2014-2017 Magnar Sveen, Lars Andersen, Benedek Fazekas
+Copyright © 2012-2014 Magnar Sveen
+
+Copyright © 2014-2023 Magnar Sveen, Lars Andersen, Benedek Fazekas, Bozhidar Batsov
 
 Author: Magnar Sveen <magnars@gmail.com>
         Lars Andersen <expez@expez.com>

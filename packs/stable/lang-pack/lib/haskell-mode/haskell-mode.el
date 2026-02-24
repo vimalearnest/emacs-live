@@ -5,13 +5,9 @@
 
 ;; Copyright © 1992, 1997-1998  Simon Marlow, Graeme E Moss, and Tommy Thorn
 
-;; Author:  1992      Simon Marlow
-;;          1997-1998 Graeme E Moss <gem@cs.york.ac.uk> and
-;;                    Tommy Thorn <thorn@irisa.fr>,
-;;          2001-2002 Reuben Thomas (>=v1.4)
-;;          2003      Dave Love <fx@gnu.org>
-;;          2016      Arthur Fayzrakhmanov
-;; Keywords: faces files Haskell
+;; Version: 17.5
+;; Package-Requires: ((emacs "25.1"))
+;; Keywords: haskell cabal ghc repl languages
 ;; URL: https://github.com/haskell/haskell-mode
 
 ;; This file is not part of GNU Emacs.
@@ -133,6 +129,7 @@
 (require 'compile)
 (require 'etags)
 (require 'flymake)
+(require 'flymake-proc nil 'noerror)
 (require 'outline)
 (require 'cl-lib)
 (require 'haskell-ghc-support)
@@ -228,11 +225,8 @@ be set to the preferred literate style."
     "---"
     ["Load tidy core" ghc-core-create-core]
     "---"
-    ,(if (default-boundp 'eldoc-documentation-function)
-         ["Doc mode" eldoc-mode
-          :style toggle :selected (bound-and-true-p eldoc-mode)]
-       ["Doc mode" haskell-doc-mode
-        :style toggle :selected (and (boundp 'haskell-doc-mode) haskell-doc-mode)])
+    ["Doc mode" haskell-doc-mode
+     :style toggle :selected (and (boundp 'haskell-doc-mode) haskell-doc-mode)]
     ["Customize" (customize-group 'haskell)]
     ))
 
@@ -531,7 +525,7 @@ be set to the preferred literate style."
       (when (nth 4 ppss)
         ;; go to the end of a comment, there is nothing to see inside
         ;; a comment so we might as well just skip over it
-        ;; immediatelly
+        ;; immediately
         (setq ppss (parse-partial-sexp (point) (point-max) nil nil ppss
                                        'syntax-table)))
       (when (nth 8 ppss)
@@ -733,8 +727,6 @@ Prefix ARG is handled as per `delete-indentation'."
   (let ((fill-prefix (or fill-prefix (if (eq haskell-literate 'bird) ">"))))
     (delete-indentation arg)))
 
-(defvar eldoc-print-current-symbol-info-function)
-
 (defvar electric-pair-inhibit-predicate)
 (declare-function electric-pair-default-inhibit "elec-pair")
 (defun haskell-mode--inhibit-bracket-inside-comment-or-default (ch)
@@ -743,6 +735,26 @@ Prefix ARG is handled as per `delete-indentation'."
       (funcall #'electric-pair-default-inhibit ch)))
 
 ;; The main mode functions
+(defcustom haskell-mode-hook '(haskell-indentation-mode interactive-haskell-mode)
+  "List of functions to run after `haskell-mode' is enabled.
+
+Use to enable minor modes coming with `haskell-mode' or run an
+arbitrary function.
+
+Note that  `haskell-indentation-mode' and `haskell-indent-mode' should not be
+run at the same time."
+  :group 'haskell
+  :type 'hook
+  :options '(capitalized-words-mode
+             flyspell-prog-mode
+             haskell-decl-scan-mode
+             haskell-indent-mode
+             haskell-indentation-mode
+             highlight-uses-mode
+             imenu-add-menubar-index
+             interactive-haskell-mode
+             turn-on-haskell-unicode-input-method))
+
 ;;;###autoload
 (define-derived-mode haskell-mode prog-mode "Haskell"
   "Major mode for editing Haskell programs.
@@ -778,17 +790,18 @@ Other modes:
       Scans top-level declarations, and places them in a menu.
 
     `haskell-doc-mode', Hans-Wolfgang Loidl
-      Echoes types of functions or syntax of keywords when the cursor is idle.
+      Sets up eldoc to echo types of functions or syntax of keywords
+      when the cursor is idle.
 
 To activate a minor-mode, simply run the interactive command. For
 example, `M-x haskell-doc-mode'. Run it again to disable it.
 
-To enable a mode for every haskell-mode buffer, add a hook in
+To enable a mode for every `haskell-mode' buffer, add a hook in
 your Emacs configuration. To do that you can customize
 `haskell-mode-hook' or add lines to your .emacs file. For
 example, to enable `interactive-haskell-mode', use the following:
 
-    (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
+    (add-hook \\='haskell-mode-hook \\='interactive-haskell-mode)
 
 Minor modes that work well with `haskell-mode':
 
@@ -799,8 +812,8 @@ Minor modes that work well with `haskell-mode':
     (error "haskell-mode requires at least Emacs 25.1"))
 
   ;; paragraph-{start,separate} should treat comments as paragraphs as well.
-  (setq-local paragraph-start (concat " *{-\\| *-- |\\|" page-delimiter))
-  (setq-local paragraph-separate (concat " *$\\| *\\({-\\|-}\\) *$\\|" page-delimiter))
+  (setq-local paragraph-start (concat " *{-\\([^#]\\|$\\)\\| *-- |\\|" page-delimiter))
+  (setq-local paragraph-separate (concat " *$\\| *\\({-\\([^#]\\|$\\)\\|\\([^#]\\|^\\)-}\\) *$\\|" page-delimiter))
   (setq-local fill-paragraph-function 'haskell-fill-paragraph)
   ;; (setq-local adaptive-fill-function 'haskell-adaptive-fill)
   (setq-local comment-start "--")
@@ -812,8 +825,6 @@ Minor modes that work well with `haskell-mode':
   (setq-local parse-sexp-ignore-comments nil)
   (setq-local syntax-propertize-function #'haskell-syntax-propertize)
 
-  ;; Set things up for eldoc-mode.
-  (setq-local eldoc-documentation-function 'haskell-doc-current-info)
   ;; Set things up for imenu.
   (setq-local imenu-create-index-function 'haskell-ds-create-imenu-index)
   ;; Set things up for font-lock.
@@ -843,7 +854,7 @@ Minor modes that work well with `haskell-mode':
   (setq-local dabbrev-case-fold-search nil)
   (setq-local dabbrev-case-distinction nil)
   (setq-local dabbrev-case-replace nil)
-  (setq-local dabbrev-abbrev-char-regexp "\\sw\\|[.]")
+  (setq-local dabbrev-abbrev-char-regexp "\\sw\\|\\s_\\|[.]")
   (setq haskell-literate nil)
   (add-hook 'before-save-hook 'haskell-mode-before-save-handler nil t)
   (add-hook 'after-save-hook 'haskell-mode-after-save-handler nil t)
@@ -858,26 +869,6 @@ Minor modes that work well with `haskell-mode':
     (setq-local electric-pair-inhibit-predicate 'haskell-mode--inhibit-bracket-inside-comment-or-default))
 
   (haskell-indentation-mode))
-
-(defcustom haskell-mode-hook '(haskell-indentation-mode interactive-haskell-mode)
-  "List of functions to run after `haskell-mode' is enabled.
-
-Use to enable minor modes coming with `haskell-mode' or run an
-arbitrary function.
-
-Note that  `haskell-indentation-mode' and `haskell-indent-mode' should not be
-run at the same time."
-  :group 'haskell
-  :type 'hook
-  :options '(capitalized-words-mode
-             flyspell-prog-mode
-             haskell-decl-scan-mode
-             haskell-indent-mode
-             haskell-indentation-mode
-             highlight-uses-mode
-             imenu-add-menubar-index
-             interactive-haskell-mode
-             turn-on-haskell-unicode-input-method))
 
 (defun haskell-fill-paragraph (justify)
   (save-excursion
@@ -1142,7 +1133,8 @@ successful, nil otherwise."
  "2015-11-11")
 
 (defun haskell-mode-toggle-scc-at-point ()
-  "If point is in an SCC annotation, kill the annotation.  Otherwise, try to insert a new annotation."
+  "If point is in an SCC annotation, kill the annotation.
+Otherwise, try to insert a new annotation."
   (interactive)
   (if (not (haskell-mode-try-kill-scc-at-point))
       (if (not (haskell-mode-try-insert-scc-at-point))
@@ -1181,7 +1173,9 @@ Uses `haskell-guess-module-name-from-file-name'."
 
 (defvar haskell-auto-insert-module-format-string
   "-- | \n\nmodule %s where\n\n"
-  "Template string that will be inserted in new haskell buffers via `haskell-auto-insert-module-template'.")
+  "Template string for the `haskell-auto-insert-module-template' command.
+It will be inserted in new haskell buffers via
+`haskell-auto-insert-module-template'.")
 
 (defun haskell-auto-insert-module-template ()
   "Insert a module template for the newly created buffer."
@@ -1205,8 +1199,8 @@ generated."
          (command (haskell-cabal--compose-hasktags-command dir)))
     (if (not command)
         (error "Unable to compose hasktags command")
-      (shell-command command)
-      (haskell-mode-message-line "Tags generated.")
+      (when (zerop (shell-command command))
+        (haskell-mode-message-line "Tags generated."))
       (when and-then-find-this-tag
         (let ((tags-file-name dir))
           (xref-find-definitions and-then-find-this-tag))))))

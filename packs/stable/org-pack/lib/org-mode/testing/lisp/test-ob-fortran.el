@@ -1,6 +1,6 @@
-;;; test-ob-fortran.el --- tests for ob-fortran.el
+;;; test-ob-fortran.el --- tests for ob-fortran.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2010-2014 Sergey Litvinov
+;; Copyright (c) 2010-2014, 2019 Sergey Litvinov
 ;; Authors: Sergey Litvinov
 
 ;; This file is not part of GNU Emacs.
@@ -16,15 +16,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (org-test-for-executable "gfortran")
 (unless (featurep 'ob-fortran)
-  (signal 'missing-test-dependency "Support for Fortran code blocks"))
-
-(ert-deftest ob-fortran/assert ()
-  (should t))
+  (signal 'missing-test-dependency '("Support for Fortran code blocks")))
 
 (ert-deftest ob-fortran/simple-program ()
   "Test of hello world program."
@@ -87,19 +84,23 @@
     (should-error (org-babel-execute-src-block))
     :type 'error))
 
-;; (ert-deftest ob-fortran/wrong-list ()
-;;   "Test wrong input list"
-;;   (org-test-at-id "891ead4a-f87a-473c-9ae0-1cf348bcd04f"
-;;     (org-babel-next-src-block 2)
-;;     (should-error (org-babel-execute-src-block))
-;;     :type 'error))
+(ert-deftest ob-fortran/wrong-list ()
+  "Test wrong input list"
+  (org-test-at-id "891ead4a-f87a-473c-9ae0-1cf348bcd04f"
+    (org-babel-next-src-block 2)
+    (org-babel-execute-src-block)
+    (when (should (buffer-live-p (get-buffer org-babel-error-buffer-name)))
+      (kill-buffer org-babel-error-buffer-name))
+    :type 'error))
 
-;; (ert-deftest ob-fortran/compiler-flags ()
-;;   "Test compiler's flags"
-;;   (org-test-at-id "891ead4a-f87a-473c-9ae0-1cf348bcd04f"
-;;     (org-babel-next-src-block 3)
-;;     (should-error (org-babel-execute-src-block))
-;;     :type 'error))
+(ert-deftest ob-fortran/compiler-flags ()
+  "Test compiler's flags"
+  (org-test-at-id "891ead4a-f87a-473c-9ae0-1cf348bcd04f"
+    (org-babel-next-src-block 3)
+    (org-babel-execute-src-block)
+    (when (should (buffer-live-p (get-buffer org-babel-error-buffer-name)))
+      (kill-buffer org-babel-error-buffer-name))
+    :type 'error))
 
 (ert-deftest ob-fortran/command-arguments ()
   "Test real array from a table"

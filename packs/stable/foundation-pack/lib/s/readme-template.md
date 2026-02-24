@@ -1,10 +1,10 @@
-# s.el [![Build Status](https://secure.travis-ci.org/magnars/s.el.png)](http://travis-ci.org/magnars/s.el) [![Coverage Status](https://coveralls.io/repos/magnars/s.el/badge.svg?branch=master)](https://coveralls.io/r/magnars/s.el?branch=master)
+# s.el [![s.el testing](https://github.com/magnars/s.el/actions/workflows/test.yml/badge.svg)](https://github.com/magnars/s.el/actions/workflows/test.yml) [![Coverage Status](https://coveralls.io/repos/magnars/s.el/badge.svg?branch=master)](https://coveralls.io/r/magnars/s.el?branch=master)
 
 The long lost Emacs string manipulation library.
 
 ## Installation
 
-It's available on [marmalade](http://marmalade-repo.org/) and [Melpa](https://melpa.org/):
+It's available on [Melpa](https://melpa.org/):
 
     M-x package-install s
 
@@ -148,9 +148,10 @@ Change `readme-template.md` or `examples-to-docs.el` instead.
 
 ## License
 
-Copyright (C) 2012-2015 Magnar Sveen
+Copyright (C) 2012-2022 Magnar Sveen
 
 Authors: Magnar Sveen <magnars@gmail.com>
+Maintainer: Jason Milkins <jasonm23@gmail.com>
 Keywords: strings
 
 This program is free software; you can redistribute it and/or modify

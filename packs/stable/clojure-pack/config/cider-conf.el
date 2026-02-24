@@ -1,5 +1,8 @@
 (live-add-pack-lib "spinner.el")
-(live-add-pack-lib "cider")
+(live-add-pack-lib "parseclj")
+(live-add-pack-lib "parseedn")
+(live-add-pack-lib "sesman")
+(live-add-pack-lib "cider/lisp")
 (require 'cider)
 (require 'cider-apropos)
 (require 'cider-macroexpansion)
@@ -23,20 +26,12 @@
            (lambda ()
              (paredit-mode 1)))
 
-(setq cider-popup-stacktraces t)
-(setq cider-popup-stacktraces-in-repl t)
 (add-to-list 'same-window-buffer-names "*cider*")
 (setq cider-overlays-use-font-lock t)
 
-;;Auto Complete
-(live-add-pack-lib "ac-cider")
-(require 'ac-cider )
-
-(add-hook 'cider-mode-hook 'ac-cider-setup)
-(add-hook 'cider-repl-mode-hook 'ac-cider-setup)
-
-(eval-after-load "auto-complete"
-  '(add-to-list 'ac-modes 'cider-mode))
+;; company-mode is enabled globally via company-conf.el
+;; cider registers cider-complete-at-point via completion-at-point-functions,
+;; which company-capf picks up automatically.
 
 ;; Specify the print length to be 100 to stop infinite sequences killing
 ;; things. This might be dangerous for some people relying on

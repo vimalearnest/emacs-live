@@ -1,9 +1,9 @@
-;;; cider-interaction-tests.el
+;;; cider-eval-tests.el  -*- lexical-binding: t; -*-
 
-;; Copyright © 2012-2018 Tim King, Bozhidar Batsov
+;; Copyright © 2012-2026 Tim King, Bozhidar Batsov
 
 ;; Author: Tim King <kingtim@gmail.com>
-;;         Bozhidar Batsov <bozhidar@batsov.com>
+;;         Bozhidar Batsov <bozhidar@batsov.dev>
 ;;         Artur Malabarba <bruce.connor.am@gmail.com>
 
 ;; This file is NOT part of GNU Emacs.
@@ -28,8 +28,10 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'cider-interaction)
-(require 'cider-connection-test-utils)
+(require 'cider-eval)
+(require 'cider-connection-test-utils "test/utils/cider-connection-test-utils")
+
+;; Please, for each `describe', ensure there's an `it' block, so that its execution is visible in CI.
 
 (describe "cider--var-namespace"
   (it "returns the namespace of a var"
@@ -42,23 +44,30 @@
             :to-equal "a.two-three.b")))
 
 (describe "cider-to-nrepl-filename-function"
-  (let ((windows-file-name "C:/foo/bar")
-        (unix-file-name "/cygdrive/c/foo/bar"))
-    (if (eq system-type 'cygwin)
-        (and (expect (funcall cider-from-nrepl-filename-function windows-file-name)
-                     :to-equal unix-file-name)
-             (expect (funcall cider-to-nrepl-filename-function unix-file-name)
-                     :to-equal windows-file-name))
-
-      (and (expect (funcall cider-from-nrepl-filename-function unix-file-name)
-                   :to-equal unix-file-name)
-           (expect (funcall cider-to-nrepl-filename-function unix-file-name)
-                   :to-equal unix-file-name)))))
-
-(describe "cider-refresh"
-  (it "raises a user error if cider is not connected"
-    (spy-on 'cider-connected-p :and-return-value nil)
-    (expect (cider-refresh) :to-throw 'user-error)))
+  (it "translates file paths when running on cygwin systems"
+    (let ((windows-file-name "C:/foo/bar")
+          (unix-file-name "/cygdrive/c/foo/bar"))
+      (if (eq system-type 'cygwin)
+          (progn
+            (expect (funcall cider-from-nrepl-filename-function windows-file-name)
+                    :to-equal unix-file-name)
+            (expect (funcall cider-to-nrepl-filename-function unix-file-name)
+                    :to-equal windows-file-name))
+        (progn
+          (expect (funcall cider-from-nrepl-filename-function unix-file-name)
+                  :to-equal unix-file-name)
+          (expect (funcall cider-to-nrepl-filename-function unix-file-name)
+                  :to-equal unix-file-name)))))
+  (it "translates file paths from container/vm location to host location"
+    (let* ((/docker/src (expand-file-name "/docker/src"))
+           (/cygdrive/c/project/src (expand-file-name "/cygdrive/c/project/src"))
+           (/docker/src/ns.clj (expand-file-name "/docker/src/ns.clj"))
+           (/cygdrive/c/project/src/ns.clj (expand-file-name "/cygdrive/c/project/src/ns.clj"))
+           (cider-path-translations `((,/docker/src . ,/cygdrive/c/project/src))))
+      (expect (funcall cider-from-nrepl-filename-function /docker/src/ns.clj)
+              :to-equal /cygdrive/c/project/src/ns.clj)
+      (expect (funcall cider-to-nrepl-filename-function /cygdrive/c/project/src/ns.clj)
+              :to-equal /docker/src/ns.clj))))
 
 (describe "cider-quit"
   (it "raises a user error if cider is not connected"
@@ -69,14 +78,6 @@
   (it "raises a user error if cider is not connected"
     (spy-on 'cider-connected-p :and-return-value nil)
     (expect (cider-restart) :to-throw 'user-error)))
-
-(describe "cider-find-ns"
-  (it "raises a user error if cider is not connected"
-    (spy-on 'cider-connected-p :and-return-value nil)
-    (expect (cider-find-ns) :to-throw 'user-error))
-  (it "raises a user error if the op is not supported"
-    (spy-on 'cider-nrepl-op-supported-p :and-return-value nil)
-    (expect (cider-find-ns) :to-throw 'user-error)))
 
 (describe "cider-load-all-project-ns"
   (it "raises a user error if cider is not connected"
@@ -89,27 +90,21 @@
 (describe "cider-load-file"
   (it "works as expected in empty Clojure buffers"
     (spy-on 'cider-request:load-file :and-return-value nil)
-    (with-connection-buffer "clj" b
-      (with-temp-buffer
-        (clojure-mode)
-        (setq buffer-file-name (make-temp-name "tmp.clj"))
-        (expect (cider-load-buffer) :not :to-throw)))))
+    (let ((default-directory "/tmp/a-dir"))
+      (with-repl-buffer "load-file-session" 'clj _b
+        (with-temp-buffer
+          (clojure-mode)
+          (setq buffer-file-name (make-temp-name "tmp.clj"))
+          (expect (let ((inhibit-message t)) (cider-load-buffer)) :not :to-throw))))))
 
 (describe "cider-interactive-eval"
   (it "works as expected in empty Clojure buffers"
     (spy-on 'cider-nrepl-request:eval :and-return-value nil)
-    (with-connection-buffer "clj" b
-      (with-temp-buffer
-        (clojure-mode)
-        (expect (cider-interactive-eval "(+ 1)") :not :to-throw)))))
-
-(describe "cider--calculate-opening-delimiters"
-  (it "returns the right opening delimiters"
-    (with-temp-buffer
-      (clojure-mode)
-      (insert "(let [a 1] (let [b 2] (+ a b)))")
-      (backward-char 2)
-      (expect (cider--calculate-opening-delimiters) :to-equal '(40 40)))))
+    (let ((default-directory "/tmp/a-dir"))
+      (with-repl-buffer "interaction-session" 'clj _b
+        (with-temp-buffer
+          (clojure-mode)
+          (expect (cider-interactive-eval "(+ 1)") :not :to-throw))))))
 
 (describe "cider--matching-delimiter"
   (it "returns the right closing delimiter"
@@ -120,3 +115,8 @@
     (expect (cider--matching-delimiter ?\)) :to-equal ?\()
     (expect (cider--matching-delimiter ?\}) :to-equal ?\{)
     (expect (cider--matching-delimiter ?\]) :to-equal ?\[)))
+
+(describe "cider--insert-closing-delimiters"
+  (it "appends any matching closing delimiters"
+    (expect (cider--insert-closing-delimiters "(let [a 1] (prn 1 [2 {3 4")
+            :to-equal "(let [a 1] (prn 1 [2 {3 4}]))")))

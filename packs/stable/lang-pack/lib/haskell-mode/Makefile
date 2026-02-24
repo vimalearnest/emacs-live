@@ -10,7 +10,7 @@
 # We should have a script that changes it everywhere it is needed and
 # syncs it with current git tag.
 #
-VERSION = 17.2-git
+VERSION = 17.5
 
 INSTALL_INFO = install-info
 
@@ -30,7 +30,7 @@ EFLAGS = --eval "(when (boundp 'load-prefer-newer) (setq load-prefer-newer t))"
 
 BATCH = @echo EMACS $@; "$(EMACS)" $(EFLAGS) --batch -Q -L .
 
-ELFILES := $(filter-out haskell-mode-autoloads.el haskell-mode-pkg.el,$(wildcard *.el))
+ELFILES := $(filter-out haskell-mode-autoloads.el,$(wildcard *.el))
 
 ELCHECKS := $(wildcard tests/*-tests.el)
 
@@ -100,7 +100,7 @@ check-ert: $(ELCHECKS)
 
 # TODO: fix issues, then enforce build failure if this fails
 check-package-lint:
-	$(BATCH) --eval $(INIT_PACKAGES) --eval '(setq package-lint-main-file "haskell-mode-pkg.el")' -f package-lint-batch-and-exit $(ELFILES) || true
+	$(BATCH) --eval $(INIT_PACKAGES) --eval '(setq package-lint-main-file "haskell-mode.el")' -f package-lint-batch-and-exit $(ELFILES) || true
 
 clean:
 	$(RM) -r build-$(EMACS_VERSION) $(AUTOLOADS) $(AUTOLOADS:.el=.elc) haskell-mode.info dir
@@ -150,11 +150,7 @@ $(AUTOLOADS): $(ELFILES)
 	$(BATCH) \
 		--eval '(setq make-backup-files nil)' \
 		--eval "(setq generated-autoload-file (concat command-line-default-directory \"/\" \"$@\"))" \
+		--eval "(require 'autoload)" \
 		-f batch-update-autoloads "."
 # check if autoloads will really load
 	$(BATCH) -l "$@"
-
-check-external : check-emacs-version $(AUTOLOADS)
-	$(BATCH) -l tests/haskell-external.el                                           \
-                 -f haskell-check-external-batch-and-exit
-	@echo "external packages okay"

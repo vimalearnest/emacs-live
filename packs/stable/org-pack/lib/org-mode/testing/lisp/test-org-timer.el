@@ -1,6 +1,6 @@
-;;; test-org-timer.el --- Tests for org-timer.el
+;;; test-org-timer.el --- Tests for org-timer.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2014-2015  Kyle Meyer
+;; Copyright (C) 2014-2015, 2019  Kyle Meyer
 
 ;; Author: Kyle Meyer <kyle@kyleam.com>
 
@@ -17,15 +17,18 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
+(require 'org-timer)
 
 (defmacro test-org-timer/with-temp-text (text &rest body)
   "Like `org-test-with-temp-text', but set timer-specific variables.
 Also, mute output from `message'."
   (declare (indent 1))
-  `(letf (((symbol-function 'message) (lambda (&rest args) nil)))
+  `(cl-letf (((symbol-function 'message) (lambda (&rest _args) nil)))
      (org-test-with-temp-text ,text
        (let (org-timer-start-time
 	     org-timer-pause-time
@@ -38,8 +41,7 @@ Also, mute output from `message'."
 (defmacro test-org-timer/with-current-time (time &rest body)
   "Run BODY, setting `current-time' output to TIME."
   (declare (indent 1))
-  `(letf (((symbol-function 'current-time) (lambda () ,time)))
-     ,@body))
+  `(org-test-at-time ,time ,@body))
 
 
 ;;; Time conversion and formatting

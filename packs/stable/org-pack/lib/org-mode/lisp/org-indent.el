@@ -1,10 +1,10 @@
 ;;; org-indent.el --- Dynamic indentation for Org    -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2025 Free Software Foundation, Inc.
 ;;
-;; Author: Carsten Dominik <carsten at orgmode dot org>
-;; Keywords: outlines, hypermedia, calendar, wp
-;; Homepage: https://orgmode.org
+;; Author: Carsten Dominik <carsten.dominik@gmail.com>
+;; Keywords: outlines, hypermedia, calendar, text
+;; URL: https://orgmode.org
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -37,13 +37,14 @@
 ;;; Code:
 
 (require 'org-macs)
+(org-assert-version)
+
+(require 'org-macs)
 (require 'org-compat)
 (require 'org)
 
 (require 'cl-lib)
 
-(declare-function org-inlinetask-get-task-level "org-inlinetask" ())
-(declare-function org-inlinetask-in-task-p "org-inlinetask" ())
 (declare-function org-list-item-body-column "org-list" (item))
 (defvar org-inlinetask-show-first-star)
 
@@ -71,8 +72,6 @@ Delay used when the buffer to initialize isn't current.")
 (defvar org-indent--initial-marker nil
   "Position of initialization before interrupt.
 This is used locally in each buffer being initialized.")
-(defvar org-hide-leading-stars-before-indent-mode nil
-  "Used locally.")
 (defvar org-indent-modified-headline-flag nil
   "Non-nil means the last deletion operated on a headline.
 It is modified by `org-indent-notify-modified-headline'.")
@@ -87,15 +86,13 @@ it may be prettier to customize the `org-indent' face."
   :type 'character)
 
 (defcustom org-indent-mode-turns-off-org-adapt-indentation t
-  "Non-nil means setting the variable `org-indent-mode' will \
-turn off indentation adaptation.
+  "Non-nil means setting `org-indent-mode' will turn off indentation adaptation.
 For details see the variable `org-adapt-indentation'."
   :group 'org-indent
   :type 'boolean)
 
 (defcustom org-indent-mode-turns-on-hiding-stars t
-  "Non-nil means setting the variable `org-indent-mode' will \
-turn on `org-hide-leading-stars'."
+  "Non-nil means setting `org-indent-mode' will turn on `org-hide-leading-stars'."
   :group 'org-indent
   :type 'boolean)
 
@@ -103,6 +100,14 @@ turn on `org-hide-leading-stars'."
   "Indentation per level in number of characters."
   :group 'org-indent
   :type 'integer)
+
+(defcustom org-indent-post-buffer-init-functions nil
+  "Hook run after org-indent finishes initializing a buffer.
+The function(s) in this hook must accept a single argument representing
+the initialized buffer."
+  :group 'org-indent
+  :package-version '(Org . "9.7")
+  :type 'hook)
 
 (defface org-indent '((t (:inherit org-hide)))
   "Face for outline indentation.
@@ -130,30 +135,32 @@ useful to make it ever so slightly different."
 	(make-vector org-indent--deepest-level nil))
   (setq org-indent--text-line-prefixes
 	(make-vector org-indent--deepest-level nil))
-  (dotimes (n org-indent--deepest-level)
-    (let ((indentation (if (<= n 1) 0
-			 (* (1- org-indent-indentation-per-level)
-			    (1- n)))))
-      ;; Headlines line prefixes.
-      (let ((heading-prefix (make-string indentation ?*)))
-	(aset org-indent--heading-line-prefixes
+  (when (> org-indent-indentation-per-level 0)
+    (dotimes (n org-indent--deepest-level)
+      (let ((indentation (if (<= n 1) 0
+			   (* (1- org-indent-indentation-per-level)
+			      (1- n)))))
+        ;; Headlines line prefixes.
+        (let ((heading-prefix (make-string indentation ?*)))
+	  (aset org-indent--heading-line-prefixes
+	        n
+	        (org-add-props heading-prefix nil 'face 'org-indent))
+	  ;; Inline tasks line prefixes
+	  (aset org-indent--inlinetask-line-prefixes
+	        n
+	        (cond ((<= n 1) "")
+		      ((bound-and-true-p org-inlinetask-show-first-star)
+		       (concat org-indent-inlinetask-first-star
+			       (substring heading-prefix 1)))
+		      (t (org-add-props heading-prefix nil 'face 'org-indent)))))
+        ;; Text line prefixes.
+        (aset org-indent--text-line-prefixes
 	      n
-	      (org-add-props heading-prefix nil 'face 'org-indent))
-	;; Inline tasks line prefixes
-	(aset org-indent--inlinetask-line-prefixes
-	      n
-	      (cond ((<= n 1) "")
-		    ((bound-and-true-p org-inlinetask-show-first-star)
-		     (concat org-indent-inlinetask-first-star
-			     (substring heading-prefix 1)))
-		    (t (org-add-props heading-prefix nil 'face 'org-indent)))))
-      ;; Text line prefixes.
-      (aset org-indent--text-line-prefixes
-	    n
-	    (concat (org-add-props (make-string (+ n indentation) ?\s)
-			nil 'face 'org-indent)
-		    (and (> n 0)
-			 (char-to-string org-indent-boundary-char)))))))
+	      (org-add-props
+	          (concat (make-string (+ n indentation) ?\s)
+		          (and (> n 0)
+			       (char-to-string org-indent-boundary-char)))
+	          nil 'face 'org-indent))))))
 
 (defsubst org-indent-remove-properties (beg end)
   "Remove indentations between BEG and END."
@@ -170,24 +177,22 @@ properties, after each buffer modification, on the modified zone.
 The process is synchronous.  Though, initial indentation of
 buffer, which can take a few seconds on large buffers, is done
 during idle time."
-  nil " Ind" nil
+  :lighter " Ind"
   (cond
    (org-indent-mode
     ;; mode was turned on.
     (setq-local indent-tabs-mode nil)
     (setq-local org-indent--initial-marker (copy-marker 1))
     (when org-indent-mode-turns-off-org-adapt-indentation
-      (setq-local org-adapt-indentation nil))
+      ;; Don't turn off `org-adapt-indentation' when its value is
+      ;; 'headline-data, just indent headline data specially.
+      (or (eq org-adapt-indentation 'headline-data)
+	  (setq-local org-adapt-indentation nil)))
     (when org-indent-mode-turns-on-hiding-stars
-      (setq-local org-hide-leading-stars-before-indent-mode
-		  org-hide-leading-stars)
       (setq-local org-hide-leading-stars t))
     (org-indent--compute-prefixes)
-    (add-hook 'filter-buffer-substring-functions
-	      (lambda (fun start end delete)
-		(org-indent-remove-properties-from-string
-		 (funcall fun start end delete)))
-	      nil t)
+    (add-function :filter-return (local 'filter-buffer-substring-function)
+                  #'org-indent-remove-properties-from-string)
     (add-hook 'after-change-functions 'org-indent-refresh-maybe nil 'local)
     (add-hook 'before-change-functions
 	      'org-indent-notify-modified-headline nil 'local)
@@ -202,19 +207,16 @@ during idle time."
       (setq org-indent-agent-timer
 	    (run-with-idle-timer 0.2 t #'org-indent-initialize-agent))))
    (t
-    ;; mode was turned off (or we refused to turn it on)
+    ;; Mode was turned off (or we refused to turn it on)
     (kill-local-variable 'org-adapt-indentation)
     (setq org-indent-agentized-buffers
 	  (delq (current-buffer) org-indent-agentized-buffers))
     (when (markerp org-indent--initial-marker)
       (set-marker org-indent--initial-marker nil))
-    (when (boundp 'org-hide-leading-stars-before-indent-mode)
-      (setq-local org-hide-leading-stars
-		  org-hide-leading-stars-before-indent-mode))
-    (remove-hook 'filter-buffer-substring-functions
-		 (lambda (fun start end delete)
-		   (org-indent-remove-properties-from-string
-		    (funcall fun start end delete))))
+    (when (local-variable-p 'org-hide-leading-stars)
+      (kill-local-variable 'org-hide-leading-stars))
+    (remove-function (local 'filter-buffer-substring-function)
+                     #'org-indent-remove-properties-from-string)
     (remove-hook 'after-change-functions 'org-indent-refresh-maybe 'local)
     (remove-hook 'before-change-functions
 		 'org-indent-notify-modified-headline 'local)
@@ -282,7 +284,8 @@ a time value."
 	 ;; Job is complete: un-agentize buffer.
 	 (unless interruptp
 	   (setq org-indent-agentized-buffers
-		 (delq buffer org-indent-agentized-buffers))))))))
+		 (delq buffer org-indent-agentized-buffers))
+           (run-hook-with-args 'org-indent-post-buffer-init-functions buffer)))))))
 
 (defun org-indent-set-line-properties (level indentation &optional heading)
   "Set prefix properties on current line an move to next one.
@@ -291,7 +294,7 @@ LEVEL is the current level of heading.  INDENTATION is the
 expected indentation when wrapping line.
 
 When optional argument HEADING is non-nil, assume line is at
-a heading.  Moreover, if is is `inlinetask', the first star will
+a heading.  Moreover, if it is `inlinetask', the first star will
 have `org-warning' face."
   (let* ((line (aref (pcase heading
 		       (`nil org-indent--text-line-prefixes)
@@ -320,12 +323,12 @@ stopped."
   (save-match-data
     (org-with-wide-buffer
      (goto-char beg)
-     (beginning-of-line)
+     (forward-line 0)
      ;; Initialize prefix at BEG, according to current entry's level.
      (let* ((case-fold-search t)
 	    (limited-re (org-get-limited-outline-regexp))
 	    (level (or (org-current-level) 0))
-	    (time-limit (and delay (time-add (current-time) delay))))
+	    (time-limit (and delay (time-add nil delay))))
        ;; For each line, set `line-prefix' and `wrap-prefix'
        ;; properties depending on the type of line (headline, inline
        ;; task, item or other).
@@ -338,7 +341,7 @@ stopped."
 	    ;; In asynchronous mode, take a break of
 	    ;; `org-indent-agent-resume-delay' every DELAY to avoid
 	    ;; blocking any other idle timer or process output.
-	    ((and delay (time-less-p time-limit (current-time)))
+	    ((and delay (time-less-p time-limit nil))
 	     (setq org-indent-agent-resume-timer
 		   (run-with-idle-timer
 		    (time-add (current-idle-time) org-indent-agent-resume-delay)
@@ -357,7 +360,18 @@ stopped."
 	      level (org-list-item-body-column (point))))
 	    ;; Regular line.
 	    (t
-	     (org-indent-set-line-properties level (org-get-indentation))))))))))
+	     (org-indent-set-line-properties
+	      level
+	      (current-indentation)
+	      ;; When adapt indentation is 'headline-data, use
+	      ;; `org-indent--heading-line-prefixes' for setting
+	      ;; headline data indentation.
+	      (and (eq org-adapt-indentation 'headline-data)
+		   (or (org-at-planning-p)
+		       (org-at-clock-log-p)
+		       (looking-at-p org-property-start-re)
+		       (looking-at-p org-property-end-re)
+		       (looking-at-p org-property-re))))))))))))
 
 (defun org-indent-notify-modified-headline (beg end)
   "Set `org-indent-modified-headline-flag' depending on context.
@@ -391,9 +405,15 @@ This function is meant to be called by `after-change-functions'."
        (if (or org-indent-modified-headline-flag
 	       (save-excursion
 		 (goto-char beg)
-		 (beginning-of-line)
+		 (forward-line 0)
 		 (re-search-forward
-		  (org-with-limited-levels org-outline-regexp-bol) end t)))
+		  (org-with-limited-levels org-outline-regexp-bol)
+                  (save-excursion
+                    (goto-char end)
+                    ;; Extend to headline if END is within its
+                    ;; headline stars.
+                    (line-end-position))
+                  t)))
 	   (let ((end (save-excursion
 			(goto-char end)
 			(org-with-limited-levels (outline-next-heading))

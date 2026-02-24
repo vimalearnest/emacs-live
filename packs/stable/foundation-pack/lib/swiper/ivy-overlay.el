@@ -1,6 +1,6 @@
 ;;; ivy-overlay.el --- Overlay display functions for Ivy  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Keywords: convenience
@@ -16,20 +16,19 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;;
-;; This package allows to setup Ivy's completion at point to actually
-;; show the candidates and the input at point, instead of in the
-;; minibuffer.
+
+;; Normally, Ivy displays completion candidates and entered text in
+;; the minibuffer.  This file enables in-buffer completion to be
+;; displayed at point instead.
 
 ;;; Code:
-(defface ivy-cursor
-  '((t (:background "black"
-        :foreground "white")))
-  "Cursor face for inline completion."
-  :group 'ivy-faces)
+
+(eval-when-compile
+  (require 'cl-lib)
+  (require 'subr-x))
 
 (defvar ivy--old-cursor-type t)
 
@@ -43,7 +42,9 @@
 Lines are truncated to the window width."
   (let ((padding (make-string width ?\s)))
     (mapconcat (lambda (x)
-                 (ivy--truncate-string (concat padding x) (1- (window-width))))
+                 (ivy--truncate-string (concat padding x)
+                                       (1- (+ (window-width)
+                                              (window-hscroll)))))
                (split-string str "\n")
                "\n")))
 
@@ -57,76 +58,119 @@ Lines are truncated to the window width."
   (when (fboundp 'company-abort)
     (company-abort)))
 
+(defvar ivy-height)
+
 (defun ivy-overlay-show-after (str)
   "Display STR in an overlay at point.
 
 First, fill each line of STR with spaces to the current column.
-Then attach the overlay the character before point."
+Then attach the overlay to the character before point."
   (if ivy-overlay-at
       (progn
         (move-overlay ivy-overlay-at (1- (point)) (line-end-position))
         (overlay-put ivy-overlay-at 'invisible nil))
+    (let ((available-height (- (window-height) (count-lines (window-start) (point)) 1)))
+      (unless (>= available-height ivy-height)
+        (recenter (- (window-height) ivy-height 2))))
     (setq ivy-overlay-at (make-overlay (1- (point)) (line-end-position)))
+    ;; Specify face to avoid clashing with other overlays.
+    (overlay-put ivy-overlay-at 'face 'default)
     (overlay-put ivy-overlay-at 'priority 9999))
   (overlay-put ivy-overlay-at 'display str)
   (overlay-put ivy-overlay-at 'after-string ""))
 
 (declare-function org-current-level "org")
+(declare-function org-at-heading-p "org")
 (defvar org-indent-indentation-per-level)
-(defvar ivy-height)
 (defvar ivy-last)
 (defvar ivy-text)
 (defvar ivy-completion-beg)
 (declare-function ivy--get-window "ivy")
-(declare-function ivy-state-current "ivy")
-(declare-function ivy-state-window "ivy")
+(declare-function ivy-state-window "ivy" t t)
 
-(defun ivy-overlay-impossible-p ()
+(defun ivy-overlay--current-column ()
+  "Return `current-column', ignoring `ivy-overlay-at'.
+Temporarily make `ivy-overlay-at' invisible so that the
+`string-width' of its `display' property is not included in the
+`current-column' calculation by Emacs >= 29.
+See URL `https://bugs.gnu.org/53795'."
+  (if (overlayp ivy-overlay-at)
+      (cl-letf (((overlay-get ivy-overlay-at 'invisible) t))
+        (1+ (current-column)))
+    (current-column)))
+
+(defun ivy-overlay-impossible-p (_str)
   (or
-   (< (- (window-width) (current-column))
-      (length (ivy-state-current ivy-last)))
-   (<= (window-height) (+ ivy-height 3))
-   (= (point) (point-min))))
+   (and (eq major-mode 'org-mode)
+        ;; If this breaks, an alternative is to call the canonical function
+        ;; `org-in-src-block-p', which is slower.  Neither approach works
+        ;; in Org versions that shipped with Emacs < 26, however.
+        (get-text-property (point) 'src-block))
+   (<= (window-height) (+ ivy-height 2))
+   (bobp)
+   (< (- (+ (window-width) (window-hscroll))
+         (ivy-overlay--current-column))
+      30)))
+
+(defun ivy-overlay--org-indent ()
+  "Return `ivy-overlay-at' indentation due to `org-indent-mode'.
+That is, the additional number of columns needed under the mode."
+  ;; Emacs 28 includes the following fix for `https://bugs.gnu.org/49695':
+  ;;
+  ;; "Fix display of line/wrap-prefix when there's a display property at BOL"
+  ;; 662f91a795 2021-07-22 21:23:48 +0300
+  ;; `https://git.sv.gnu.org/cgit/emacs.git/commit/?id=662f91a795'
+  ;;
+  ;; This increasingly misindents `ivy-overlay-at' with each additional Org
+  ;; level.  See also `https://github.com/abo-abo/swiper/commit/ee7f7f8c79'.
+  ;; FIXME: Is there a better way to work around this?
+  (if (and (eq major-mode 'org-mode)
+           (bound-and-true-p org-indent-mode)
+           (< emacs-major-version 28))
+      (let ((level (org-current-level)))
+        (if (org-at-heading-p)
+            (1- level)
+          (* org-indent-indentation-per-level (or level 1))))
+    0))
 
 (defun ivy-display-function-overlay (str)
   "Called from the minibuffer, display STR in an overlay in Ivy window.
 Hide the minibuffer contents and cursor."
   (if (save-selected-window
         (select-window (ivy-state-window ivy-last))
-        (ivy-overlay-impossible-p))
+        (ivy-overlay-impossible-p str))
       (let ((buffer-undo-list t))
         (save-excursion
           (forward-line 1)
           (insert str)))
     (add-face-text-property (minibuffer-prompt-end) (point-max)
                             '(:foreground "white"))
-    (let ((cursor-pos (1+ (- (point) (minibuffer-prompt-end))))
-          (ivy-window (ivy--get-window ivy-last)))
+    (setq cursor-type nil)
+    (with-selected-window (ivy--get-window ivy-last)
+      (when cursor-type
+        (setq ivy--old-cursor-type cursor-type))
       (setq cursor-type nil)
-      (with-selected-window ivy-window
-        (when cursor-type
-          (setq ivy--old-cursor-type cursor-type))
-        (setq cursor-type nil)
-        (let ((overlay-str
-               (concat
-                (buffer-substring (max 1 (1- (point))) (point))
-                ivy-text
-                (if (eolp)
-                    " "
-                  "")
-                (buffer-substring (point) (line-end-position))
-                (ivy-left-pad
-                 str
-                 (+ (if (and (eq major-mode 'org-mode)
-                             (bound-and-true-p org-indent-mode))
-                        (* org-indent-indentation-per-level (org-current-level))
-                      0)
-                    (save-excursion
-                      (goto-char ivy-completion-beg)
-                      (current-column)))))))
-          (add-face-text-property cursor-pos (1+ cursor-pos)
-                                  'ivy-cursor t overlay-str)
-          (ivy-overlay-show-after overlay-str))))))
+      (let ((overlay-str
+             (apply
+              #'concat
+              (buffer-substring (max (point-min) (1- (point))) (point))
+              ivy-text
+              (and (eolp) " ")
+              (buffer-substring (point) (line-end-position))
+              (and (> (length str) 0)
+                   (list "\n"
+                         (ivy-left-pad
+                          (string-remove-prefix "\n" str)
+                          (+ (ivy-overlay--org-indent)
+                             (save-excursion
+                               (when ivy-completion-beg
+                                 (goto-char ivy-completion-beg))
+                               (ivy-overlay--current-column)))))))))
+        (let ((cursor-offset (1+ (length ivy-text))))
+          (add-face-text-property cursor-offset (1+ cursor-offset)
+                                  'ivy-cursor t overlay-str))
+        (ivy-overlay-show-after overlay-str)))))
 
 (provide 'ivy-overlay)
+
 ;;; ivy-overlay.el ends here

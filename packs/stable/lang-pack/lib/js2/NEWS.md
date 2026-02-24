@@ -1,6 +1,56 @@
 # History of user-visible changes
 
-## Next
+## 2023-12-24
+
+* Support for async generators in method notation
+  ([#598](https://github.com/mooz/js2-mode/issues/598)).
+* Support for static initialization blocks
+  ([#594](https://github.com/mooz/js2-mode/issues/594)).
+
+## 2023-04-08
+
+* Support top-level await
+  ([#593](https://github.com/mooz/js2-mode/issues/593)).
+* Fix for escaping inside template literal
+  ([#592](https://github.com/mooz/js2-mode/issues/592)).
+
+## 2022-07-10
+
+* Fix for node position of `js2-new-node`
+  ([#591](https://github.com/mooz/js2-mode/issues/591)).
+* Support the d (hasIndices) and s (dotAll) regexp flags
+  ([#590](https://github.com/mooz/js2-mode/pull/590)).
+* Support for `_` separator in numbers (i.e., numeric separator)
+  ([#584](https://github.com/mooz/js2-mode/pull/584)).
+
+## 2021-12-29
+
+* Imenu support for mocha-like (includes Jasmine and Cypress) test
+  files: i.e., `M-x imenu` will now list test blocks defined with
+  `describe()` and `it()`
+  ([#576](https://github.com/mooz/js2-mode/pull/576)).
+* Minor improvements in `js2-jump-to-definition`
+  ([#423](https://github.com/mooz/js2-mode/issues/423)).
+* Support for private class members
+  ([#537](https://github.com/mooz/js2-mode/issues/537)).
+* Support for dynamic imports and `import.meta`
+  ([#547](https://github.com/mooz/js2-mode/issues/547)).
+* Support for trailing comma in arrow function parameters
+  ([#480](https://github.com/mooz/js2-mode/issues/480)).
+* Support for `for await of` syntax ([#543](https://github.com/mooz/js2-mode/pull/543)).
+
+## 2020-12-20
+
+* Support for logical assignment operators ([#564](https://github.com/mooz/js2-mode/issues/564)).
+* Support for the nullish coalescing operator ([#561](https://github.com/mooz/js2-mode/pull/561)).
+* Emacs 27 now provides improved JSX indentation support, along with
+  new JSX highlighting and detection support. Install Emacs 27 and use
+  `js-mode` with `js2-minor-mode` (see README), rather than
+  `js2-jsx-mode`.
+* Using `js2-jsx-mode` will now trigger a warning in Emacs 27.
+* Support for optional-chaining operator `?.`
+
+## 2019-02-19
 
 * Changed the default of `js2-strict-trailing-comma-warning` to nil.
 

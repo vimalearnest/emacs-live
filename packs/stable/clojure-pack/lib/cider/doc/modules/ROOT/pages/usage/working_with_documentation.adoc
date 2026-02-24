@@ -1,0 +1,196 @@
+= Working with Documentation
+
+Quick access to documentation is very important for productive
+development. That's why CIDER puts a heavy emphasis on this
+and provides a lot of documentation-related functionality.
+
+== Looking up Documentation
+
+The most basic thing that you can do is go to some symbol and
+press kbd:[C-c C-d C-d] then. This open a documentation buffer
+containing all the relevant information about the thing referenced
+by the symbol (special form, var, Java method, etc).
+
+TIP: You can also use the keybinding kbd:[C-c C-d d]. Most CIDER keymaps
+provide two versions of the same keybinding (with or without the final `Control`),
+as some people prefer to keep holding `Control` and some don't.
+
+Normally the command operates on the symbol at point.  If invoked with a prefix
+argument, or no symbol is found at point, it will prompt for a symbol.
+
+== Local JavaDoc
+
+Most JDK distributions ship with a `src.zip` file (an archive with all base Java
+source files). If you have such archive present in your JDK, CIDER will
+automatically parse the source file when you query the documentation for a Java
+class (e.g. `java.lang.Thread`) or a method
+(e.g. `java.lang.Thread/currentThread`) and will display the properly formatted
+JavaDoc in the documentation buffer. You will also see better Eldoc
+documentation (minibuffer hints) for Java methods. If the source files are
+present, you are able to jump to class or method definition by pressing
+kbd:[M-.] on the class name or method name.
+
+Furthermore, CIDER is able to parse JavaDoc source files and jump to definitions
+for third-party Java libraries if you have downloaded the special `-sources.jar`
+file for that library. See the next section on how to download source JARs.
+
+== Obtaining source JARs
+
+Since version 1.17, CIDER is able to download the necessary source JAR file
+automatically when you either request the documentation for a Java class/method
+or when you jump to the definition of a Java class/method. In order for the
+sources to be downloaded, the variable `cider-download-java-sources` has to be
+enabled (it is by default). When the download triggers, CIDER displays a
+minibuffer message about that. Fetching a single source JAR usually takes a few
+seconds. CIDER will make only one attempt to download the source JAR for a
+particular dependency per process — if it failed to download (usually, because
+the dependency doesn't have a source JAR published to Maven), CIDER will not
+retry that until the next restart.
+
+NOTE: While Eldoc functionality benefits from having Java sources, the eldoc
+itself will not trigger the downloading of Java source JARs. You will have to
+lookup the documentation once manually or jump to the definition in order for
+the JAR to be downloaded. After that, Eldoc will pick up the Java sources and
+display better hints.
+
+Alternatively, you can use
+https://github.com/clojure-emacs/enrich-classpath[`enrich-classpath`] to
+download all source JARs used by your current project at once. This will incur
+longer startup time, but will not trigger individual JARs fetching at the
+runtime.
+
+== Online JavaDoc
+
+CIDER provides a quick access to the online Javadoc documentation
+via the command `cider-javadoc` (kbd:[C-c C-d j] or kbd:[C-c C-d C-j]), using your default browser.
+
+Normally the command operates on the symbol at point.  If invoked with a prefix argument, or no symbol is found at point, it will prompt for a symbol.
+
+If you don't want CIDER to use an external browser to display the JavaDoc you can use the built-in
+EWW browser instead like this:
+
+[source,lisp]
+----
+(setq browse-url-browser-function 'eww-browse-url)
+----
+
+== Searching in Docstrings
+
+CIDER provides a handy alternative of `clojure.repl/find-doc` - `cider-apropos-documentation` (kbd:[C-c C-d f] or
+kbd:[C-c C-d C-f]). This allows you to search in the docstrings of all loaded vars with the results presented
+in Emacs's `apropos` interface.
+
+Alternatively you can use `cider-apropos-documentation-select` (kbd:[C-c C-d e] or kbd:[C-c C-d C-e]), which presents you the matching
+results as a list in the minibuffer, so you can quickly select what you need (especially if you're using some package like `ido` or `vertico`).
+
+== ClojureDocs
+
+CIDER provides integration with the popular https://clojuredocs.org/[ClojureDocs service].
+You've got two main ways of interacting with ClojureDocs:
+
+* displaying the documentation in a dedicated buffer in Emacs via `cider-clojuredocs` (kbd:[C-c C-d C-c])
+* opening the documentation in your default browser via `cider-clojuredocs-web` (kbd:[C-c C-d C-w])
+
+The documentation is bundled with `cider-nrepl` as an EDN resource (or more
+precisely - with `orchard`, which is dependency of `cider-nrepl`) and it's a
+snapshot of the ClojureDocs data. You can update it manually to the most recent
+version with `M-x cider-clojuredocs-refresh-cache`.
+
+Keep in mind that the documentation in ClojureDocs is limited only to Clojure and a few
+Clojure Contrib libraries (e.g. `core.async`). ClojureScript is currently not supported
+there.
+
+TIP: Check out https://metaredux.com/posts/2019/12/14/exporting-clojuredocs-as-edn.html[this article] if you're curious about the internals of how CIDER interacts with ClojureDocs.
+
+== Generating Documentation Cross References
+
+Sometimes in your documentation strings, you'd like to be able to
+point other programmers at different definitions. If you specify the
+name of a definition as a fully qualified symbol, or surround it in
+backticks (`++`...`++`) or Codox-style delimiters (`+[[...]]+`), CIDER
+will convert these references into live links when it displays the
+documentation string in the documentation buffer.
+
+If the name is in another namespace, then you'll have to include the
+fully qualified name in the docstring.
+
+Example function with a docstring containing references:
+
+----
+(defn test-fn
+  "Test function.
+  Also see: clojure.core/map, clojure.core/reduce, `defn`.
+  You can reference variables like `thor`, [[kubaru.data.zookeeper/yoda]].
+  Also works with references to java interop forms, `java.lang.String/.length`."
+  []
+  (+ 1 1))
+----
+
+You can change the delimiters that CIDER uses to find references if
+you want to support other reference formats.  Simply update the regexp in
+`cider-doc-xref-regexp` to match your preferred format. The first
+group of the regexp should always match the cross-reference name. For
+example, if you want to use Latex-style references
+(`+\ref{...}+`) instead, the regexp would be:
+
+----
+(setq cider-doc-xref-regexp "\\\\ref{\\(?1:[^}]+\\)}")
+----
+
+image::cider_see_also.gif[CIDER See Also]
+
+== Displaying Documentation as Tooltips
+
+By default CIDER will show the documentation for the symbol under the mouse in a
+tooltip (using an overlay) or your echo area. That's controlled by the
+configuration setting `cider-use-tooltips`. You can disable this behavior by
+setting the variable to `nil`.
+
+----
+(setq cider-use-tooltips nil)
+----
+
+The tooltips will also be disabled if `tooltip-mode` is disabled or `help-at-pt-display-when-idle` is set to `t`.
+
+TIP: Check out the documentation of `help-at-pt-display-when-idle` to understand better how the `help-echo` Emacs functionality works.
+
+== Keybindings
+
+|===
+| Command | Keyboard shortcut | Description
+
+| `cider-doc`
+| kbd:[C-c C-d d] +
+kbd:[C-c C-d C-d]
+| Display doc string for the symbol at point.  If invoked with a prefix argument, or no symbol is found at point, prompt for a symbol.
+
+| `cider-javadoc`
+| kbd:[C-c C-d j] +
+kbd:[C-c C-d C-j]
+| Display JavaDoc (in your default browser) for the symbol at point.  If invoked with a prefix argument, or no symbol is found at point, prompt for a symbol.
+
+| `cider-clojuredocs`
+| kbd:[C-c C-d c] +
+kbd:[C-c C-d C-c]
+| Lookup symbol in ClojureDocs.
+
+| `cider-clojuredocs-web`
+| kbd:[C-c C-d w] +
+kbd:[C-c C-d C-w]
+| Open the ClojureDocs documentation for symbol in a web browser.
+
+| `cider-apropos`
+| kbd:[C-c C-d a] +
+kbd:[C-c C-d C-a]
+| Apropos search for functions/vars.
+
+| `cider-apropos-documentation`
+| kbd:[C-c C-d f] +
+kbd:[C-c C-d C-f]
+| Apropos search for documentation.
+
+| `cider-apropos-documentation-select`
+| kbd:[C-c C-d e] +
+kbd:[C-c C-d C-e]
+| Apropos search for documentation & select.
+|===

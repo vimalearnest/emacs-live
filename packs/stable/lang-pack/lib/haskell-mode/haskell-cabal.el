@@ -99,22 +99,30 @@ By default these are:
 (defvar haskell-cabal-font-lock-keywords
   ;; The comment syntax can't be described simply in syntax-table.
   ;; We could use font-lock-syntactic-keywords, but is it worth it?
-  '(("^[ \t]*--.*" . font-lock-comment-face)
-    ("^ *\\([^ \t:]+\\):" (1 font-lock-keyword-face))
-    ("^\\(Library\\)[ \t]*\\({\\|$\\)" (1 font-lock-keyword-face))
-    ("^\\(Executable\\|Test-Suite\\|Benchmark\\|Common\\|package\\)[ \t]+\\([^\n \t]*\\)"
+  '(;; comments
+    ("^[ \t]*\\(--\\)\\(.*\\)"
+     (1 font-lock-comment-delimiter-face) (2 font-lock-comment-face))
+    ;; fields ending in colon
+    ("^ *\\([^ \t:]+\\):\\( +\\|$\\)" (1 font-lock-keyword-face))
+    ;; stanzas that start a line, followed by an identifier
+    ("^\\(Library\\|Executable\\|Test-Suite\\|Benchmark\\|Common\\|Package\\|Flag\\|Repository\\)[ \t]+\\([^\n \t]*\\)"
      (1 font-lock-keyword-face) (2 font-lock-function-name-face))
-    ("^\\(Flag\\|install-dirs\\|repository\\)[ \t]+\\([^\n \t]*\\)"
-     (1 font-lock-keyword-face) (2 font-lock-constant-face))
-    ("^\\(Source-Repository\\)[ \t]+\\(head\\|this\\)"
-     (1 font-lock-keyword-face) (2 font-lock-constant-face))
-    ("^\\(haddock\\|source-repository-package\\|program-locations\\|program-default-options\\)\\([ \t]\\|$\\)"
-     (1 font-lock-keyword-face))
-    ("^ *\\(if\\)[ \t]+.*\\({\\|$\\)" (1 font-lock-keyword-face))
-    ("^ *\\(}[ \t]*\\)?\\(else\\)[ \t]*\\({\\|$\\)"
-     (2 font-lock-keyword-face))
-    ("\\<\\(?:True\\|False\\)\\>"
-     (0 font-lock-constant-face))))
+    ;; stanzas that start a line, followed by a constant
+    ("^\\(Source-Repository\\)[ \t]+\\(head\\|this\\)" (1 font-lock-keyword-face) (2 font-lock-constant-face))
+    ;; stanzas that start a line, followed by a constant in cabal config
+    ("^\\(install-dirs\\)[ \t]+\\(global\\|user\\)" (1 font-lock-keyword-face) (2 font-lock-constant-face))
+    ;; stanzas that start a line
+    ("^\\(Library\\|Custom-Setup\\|source-repository-package\\)[ \t]*$" (1 font-lock-keyword-face))
+    ;; stanzas that start a line in cabal config
+    ("^\\(haddock\\|init\\|program-locations\\|program-default-options\\)[ \t]*$" (1 font-lock-keyword-face))
+    ;; stanzas that can live inside if-blocks
+    ("^[ \t]*\\(program-options\\)$" (1 font-lock-keyword-face))
+    ;; if clause
+    ("^ *\\(if\\|elif\\)[ \t]+.*$" (1 font-lock-keyword-face))
+    ;; else clause
+    ("^ *\\(else\\)[ \t]*$" (1 font-lock-keyword-face))
+    ;; True/False
+    ("\\<\\(?:True\\|False\\)\\>" (0 font-lock-constant-face))))
 
 (defvar haskell-cabal-buffers nil
   "List of Cabal buffers.")
@@ -160,15 +168,15 @@ it from list if one of the following conditions are hold:
     map))
 
 ;;;###autoload
-(define-derived-mode haskell-cabal-mode fundamental-mode "Haskell-Cabal"
+(define-derived-mode haskell-cabal-mode text-mode "Haskell-Cabal"
   "Major mode for Cabal package description files."
   (setq-local font-lock-defaults
               '(haskell-cabal-font-lock-keywords t t nil nil))
   (add-to-list 'haskell-cabal-buffers (current-buffer))
   (add-hook 'change-major-mode-hook 'haskell-cabal-unregister-buffer nil 'local)
   (add-hook 'kill-buffer-hook 'haskell-cabal-unregister-buffer nil 'local)
-  (setq-local comment-start "-- ")
-  (setq-local comment-start-skip "\\(^[ \t]*\\)--[ \t]*")
+  (setq-local comment-start "--")
+  (setq-local comment-start-skip "--[ \t]*")
   (setq-local comment-end "")
   (setq-local comment-end-skip "[ \t]*\\(\\s>\\|\n\\)")
   (setq-local indent-line-function 'haskell-cabal-indent-line)
@@ -232,8 +240,9 @@ file), then this function returns nil."
 
 ;;;###autoload
 (defun haskell-cabal-get-dir (&optional use-defaults)
-  "Get the Cabal dir for a new project. Various ways of figuring this out,
-   and indeed just prompting the user. Do them all."
+  "Get the Cabal dir for a new project.
+Various ways of figuring this out, and indeed just prompting the user.  Do them
+all."
   (let* ((file (haskell-cabal-find-file))
          (dir (if file (file-name-directory file) default-directory)))
     (if use-defaults
@@ -348,7 +357,6 @@ OTHER-WINDOW use `find-file-other-window'."
     "help"
     "run"))
 
-;;;###autoload
 (defgroup haskell-cabal nil
   "Haskell cabal files"
   :group 'haskell
@@ -361,7 +369,9 @@ OTHER-WINDOW use `find-file-other-window'."
 (defconst haskell-cabal-conditional-regexp "^[ \t]*\\(\\if\\|else\\|}\\)")
 
 (defun haskell-cabal-classify-line ()
-  "Classify the current line into 'section-header 'subsection-header 'section-data 'comment and 'empty '"
+  "Classify the current line's type.
+Possible results are \\='section-header \\='subsection-header \\='section-data
+\\='comment and \\='empty"
   (save-excursion
     (beginning-of-line)
     (cond
@@ -465,8 +475,20 @@ OTHER-WINDOW use `find-file-other-window'."
             :end (save-match-data (haskell-cabal-subsection-end))
             :data-start-column (save-excursion (goto-char (match-end 0))
                                                (current-column))
+            ;; Note: Redundant leading commas are allowed since Cabal 2.2.
+            ;; Example:
+            ;; build-depends:
+            ;;      , base
+            ;;      , text
+            ;;
+            ;; Note: More than one newlines are allowed after the subsection name.
+            ;; Example:
+            ;; build-depends:
+            ;;
+            ;;
+            ;;      base
             :data-indent-column (save-excursion (goto-char (match-end 0))
-                                                (when (looking-at "\n  +\\(\\w*\\)") (goto-char (match-beginning 1)))
+                                                (when (looking-at "\n[\n\t ]*  +\\([\\w,]*\\)") (goto-char (match-beginning 1)))
                                                 (current-column)
                                                 )))))
 
@@ -494,7 +516,8 @@ OTHER-WINDOW use `find-file-other-window'."
           ((equal component-type "benchmark")  "bench"))))
 
 (defun haskell-cabal-enum-targets (&optional process-type)
-  "Enumerate .cabal targets. PROCESS-TYPE determines the format of the returned target."
+  "Enumerate .cabal targets.
+PROCESS-TYPE determines the format of the returned target."
   (let ((cabal-file (haskell-cabal-find-file))
         (process-type (if process-type process-type 'ghci)))
     (when (and cabal-file (file-readable-p cabal-file))
@@ -699,7 +722,7 @@ Respect the COMMA-STYLE, see
 `haskell-cabal-strip-list-and-detect-style' for the possible
 styles."
   (cl-case comma-style
-    ('before
+    (before
      (goto-char (point-min))
      (while (haskell-cabal-ignore-line-p) (forward-line))
      (indent-to 2)
@@ -707,14 +730,14 @@ styles."
      (haskell-cabal-each-line
       (unless (haskell-cabal-ignore-line-p)
         (insert ", "))))
-    ('after
+    (after
      (goto-char (point-max))
      (while (equal 0 (forward-line -1))
        (unless (haskell-cabal-ignore-line-p)
          (end-of-line)
          (insert ",")
          (beginning-of-line))))
-    ('single
+    (single
      (goto-char (point-min))
      (while (not (eobp))
        (end-of-line)
@@ -924,9 +947,10 @@ resulting buffer-content.  Unmark line at the end."
                     haskell-cabal-source-bearing-sections))))
 
 (defun haskell-cabal-line-filename ()
-  "Expand filename in current line according to the subsection type
+  "Expand filename in current line according to the subsection type.
 
-Module names in exposed-modules and other-modules are expanded by replacing each dot (.) in the module name with a forward slash (/) and appending \".hs\"
+Module names in exposed-modules and other-modules are expanded by replacing each
+dot (.) in the module name with a forward slash (/) and appending \".hs\"
 
 Example: Foo.Bar.Quux ==> Foo/Bar/Quux.hs
 
@@ -1047,11 +1071,24 @@ Source names from main-is and c-sources sections are left untouched
   (cl-case (haskell-cabal-classify-line)
     (section-data
      (save-excursion
-       (let ((indent (haskell-cabal-section-data-indent-column
-                      (haskell-cabal-subsection))))
-         (indent-line-to indent)
+       (let* ((subsection (haskell-cabal-subsection))
+              (beginning (haskell-cabal-section-start subsection))
+              (indent-column (haskell-cabal-section-data-indent-column subsection))
+              (subsection-leading-comma-p (save-excursion
+                                            (goto-char beginning)
+                                            (looking-at ",\\|\n[ \t\n]*,"))))
+         (indent-line-to indent-column)
          (beginning-of-line)
-         (when (looking-at "[ ]*\\([ ]\\{2\\},[ ]*\\)")
+         ;; Only do extra adjustment if the first item is not comma leading.
+         ;; Example of the two cases:
+         ;;
+         ;; |  aaa     |    aaa
+         ;; |  , bbb   |  , bbb
+         ;;
+         ;; |  , aaa |  , aaa
+         ;; |  , bbb |  , bbb
+         (when (and (not subsection-leading-comma-p)
+                    (looking-at "[ ]*\\([ ]\\{2\\},[ ]*\\)"))
            (replace-match ", " t t nil 1)))))
     (empty
      (indent-relative)))

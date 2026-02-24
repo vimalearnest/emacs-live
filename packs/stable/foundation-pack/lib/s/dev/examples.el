@@ -2,9 +2,13 @@
 
 ;; Only the first three examples per function are shown in the docs,
 ;; so make those good.
+;;; Code:
 
 (require 's)
-(require 'assoc)
+;; Above emacs 24.1 assoc is core C.
+(when (or (and (= emacs-major-version 24) (<= emacs-minor-version 2))
+          (< emacs-major-version 24))
+  (require 'assoc))
 
 (def-example-group "Tweak whitespace"
   (defexamples s-trim
@@ -28,6 +32,38 @@
   (defexamples s-collapse-whitespace
     (s-collapse-whitespace "only   one space   please") => "only one space please"
     (s-collapse-whitespace "collapse \n all \t sorts of \r whitespace") => "collapse all sorts of whitespace")
+
+  (defexamples s-unindent
+    (s-unindent "- indented
+                |  - multiline
+                |  - strings
+                |  - can be
+                |    - more pleasant
+                |    - to work with
+                |") => "- indented
+  - multiline
+  - strings
+  - can be
+    - more pleasant
+    - to work with
+"
+    (s-unindent "#!/bin/sh
+                !# pipes are not always usable
+                !
+                !# so we can use any other string.
+                !# pipe freely
+                !cat file \\
+                ! | grep \"thing\" \\
+                ! | wc -l
+                !" "!") => "#!/bin/sh
+# pipes are not always usable
+
+# so we can use any other string.
+# pipe freely
+cat file \\
+ | grep \"thing\" \\
+ | wc -l
+")
 
   (defexamples s-word-wrap
     (s-word-wrap 10 "This is too long") => "This is\ntoo long"
@@ -66,6 +102,14 @@
   (defexamples s-right
     (s-right 3 "lib/file.js") => ".js"
     (s-right 3 "li") => "li")
+
+  (defexamples s-chop-left
+    (s-chop-left 3 "lib/file.js") => "/file.js"
+    (s-chop-left 3 "li") => "")
+
+  (defexamples s-chop-right
+    (s-chop-right 3 "lib/file.js") => "lib/file"
+    (s-chop-right 3 "li") => "")
 
   (defexamples s-chop-suffix
     (s-chop-suffix "-test.js" "penguin-test.js") => "penguin"
@@ -112,7 +156,12 @@
     (s-prepend "abc" "def") => "abcdef")
 
   (defexamples s-append
-    (s-append "abc" "def") => "defabc"))
+    (s-append "abc" "def") => "defabc")
+
+  (defexamples s-splice
+    (s-splice "abc" 0 "def") => "abcdef"
+    (s-splice "abc" -1 "def") => "defabc"
+    (s-splice "needle" 2 "A  in a haystack.") => "A needle in a haystack."))
 
 (def-example-group "To and from lists"
   (defexamples s-lines
@@ -270,7 +319,8 @@
 
   (defexamples s-replace-all
     (s-replace-all '(("lib" . "test") ("file" . "file_test")) "lib/file.js") => "test/file_test.js"
-    (s-replace-all '(("lib" . "test") ("test" . "lib")) "lib/test.js") => "test/lib.js")
+    (s-replace-all '(("lib" . "test") ("test" . "lib")) "lib/test.js") => "test/lib.js"
+    (s-replace-all '(("FOO" . "bar") ("FLOO" . "bah")) "FOO BLOO foo") => "bar BLOO foo")
 
   (defexamples s-downcase
     (s-downcase "ABC") => "abc")
@@ -374,7 +424,7 @@
         (s-format
          "help ${name}! I'm ${malady}"
          'gethash
-         #s(hash-table test equal data ("name" "nic" )))
+         #s(hash-table test equal data ("name" "nic")))
       (s-format-resolve (car err)))
     => 's-format-resolve)
 
@@ -392,8 +442,8 @@
     ;; Have a literal \ in the replacement
     (let ((foo "Hello\\nWorld"))
       (s-lex-format "${foo}"))
-    => "Hello\\nWorld"
-    )
+    => "Hello\\nWorld")
+    
 
   (defexamples s-count-matches
     (s-count-matches "a" "aba") => 2
@@ -450,6 +500,11 @@
     (s-dashed-words "some words") => "some-words"
     (s-dashed-words "under_scored_words") => "under-scored-words"
     (s-dashed-words "camelCasedWords") => "camel-cased-words")
+
+  (defexamples s-spaced-words
+    (s-spaced-words "some_words") => "some words"
+    (s-spaced-words "dashed-words") => "dashed words"
+    (s-spaced-words "camelCasedWords") => "camel Cased Words")
 
   (defexamples s-capitalized-words
     (s-capitalized-words "some words") => "Some words"

@@ -1,9 +1,9 @@
-;;; cider-classpath-tests.el
+;;; cider-classpath-tests.el  -*- lexical-binding: t; -*-
 
-;; Copyright © 2012-2018 Tim King, Bozhidar Batsov
+;; Copyright © 2012-2026 Tim King, Bozhidar Batsov
 
 ;; Author: Tim King <kingtim@gmail.com>
-;;         Bozhidar Batsov <bozhidar@batsov.com>
+;;         Bozhidar Batsov <bozhidar@batsov.dev>
 ;;         Artur Malabarba <bruce.connor.am@gmail.com>
 
 ;; This file is NOT part of GNU Emacs.
@@ -28,8 +28,9 @@
 ;;; Code:
 
 (require 'buttercup)
-(require 'cider)
 (require 'cider-classpath)
+
+;; Please, for each `describe', ensure there's an `it' block, so that its execution is visible in CI.
 
 (describe "cider-classpath"
   (it "raises user-error when cider is not connected."

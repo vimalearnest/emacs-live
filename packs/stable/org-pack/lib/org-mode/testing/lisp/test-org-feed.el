@@ -1,6 +1,6 @@
 ;;; test-org-feed.el --- Tests for org-feed.el -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016  Michael Brand
+;; Copyright (C) 2016, 2019  Michael Brand
 
 ;; Author: Michael Brand <michael.ch.brand@gmail.com>
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 

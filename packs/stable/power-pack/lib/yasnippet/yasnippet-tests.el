@@ -1,8 +1,8 @@
 ;;; yasnippet-tests.el --- some yasnippet tests  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2013, 2014, 2015, 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2025  Free Software Foundation, Inc.
 
-;; Author: Jo�o T�vora <joaot@siscog.pt>
+;; Author: João Távora <joaot@siscog.pt>
 ;; Keywords: emulations, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -121,7 +121,8 @@ This lets `yas--maybe-expand-from-keymap-filter' work as expected."
         (funcall fn)
       (cl-loop for var in vars
                for saved in saved-values
-               do (set var saved)))))
+               do (unless (eq (symbol-value var) saved) ;Beware read-only vars!
+                    (set var saved))))))
 
 (defun yas-call-with-snippet-dirs (dirs fn)
   (let* ((default-directory (make-temp-file "yasnippet-fixture" t))
@@ -136,20 +137,6 @@ This lets `yas--maybe-expand-from-keymap-filter' work as expected."
 
 ;;; Older emacsen
 ;;;
-(unless (fboundp 'special-mode)
-  ;; FIXME: Why provide this default definition here?!?
-  (defalias 'special-mode 'fundamental))
-
-(unless (fboundp 'string-suffix-p)
-  ;; introduced in Emacs 24.4
-  (defun string-suffix-p (suffix string &optional ignore-case)
-    "Return non-nil if SUFFIX is a suffix of STRING.
-If IGNORE-CASE is non-nil, the comparison is done without paying
-attention to case differences."
-    (let ((start-pos (- (length string) (length suffix))))
-      (and (>= start-pos 0)
-           (eq t (compare-strings suffix nil nil
-                                  string start-pos nil ignore-case))))))
 
 
 ;;; Snippet mechanics
@@ -192,6 +179,20 @@ attention to case differences."
     (yas-mock-insert "bla")
     (should (string= (yas--buffer-contents)
                      "bla from another BLA"))))
+
+(ert-deftest yas-mirror-many-fields ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "${1:brother} and ${2:brother} are${1:$(if (string= (yas-field-value 1) (yas-field-value 2)) \" \" \" not \")}the same word")
+    (should (string= (yas--buffer-contents)
+                     "brother and brother are the same word"))
+    (yas-mock-insert "bla")
+    (should (string= (yas--buffer-contents)
+                     "bla and brother are not the same word"))
+    (ert-simulate-command '(yas-next-field-or-maybe-expand))
+    (yas-mock-insert "bla")
+    (should (string= (yas--buffer-contents)
+                     "bla and bla are the same word"))))
 
 (ert-deftest mirror-with-transformation-and-autofill ()
   "Test interaction of autofill with mirror transforms"
@@ -331,6 +332,31 @@ attention to case differences."
         (push nil buffer-undo-list)
         (ert-simulate-command '(undo))  ; Redo (re-expand snippet).
         (should (string-match-p "\\`one,and done" (buffer-string)))))))
+
+(ert-deftest undo-revive-and-do-again ()
+  "Check undo-revived snippet is properly ended."
+  ;; See https://github.com/joaotavora/yasnippet/issues/1006.
+  (yas-with-snippet-dirs '((".emacs.d/snippets"
+                            ("emacs-lisp-mode" ("x" . "${1:one},and done"))))
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (yas-reload-all)
+      (yas-minor-mode 1)
+      (yas-expand-snippet "x$0")
+      (setq buffer-undo-list nil)
+      (ert-simulate-command '(yas-expand))
+      (push nil buffer-undo-list)
+      (ert-simulate-command '(yas-next-field)) ; $1 -> exit snippet.
+      (should (string-match-p "\\`one,and done" (buffer-string)))
+      (push nil buffer-undo-list)
+      (ert-simulate-command '(undo))    ; Revive snippet.
+      (yas-mock-insert "abc")
+      (ert-simulate-command '(yas-next-field)) ; $1 -> exit snippet again.
+      (should (string-match-p "\\`abc,and done" (buffer-string)))
+      ;; We should have exited snippet and cleaned up any overlays.
+      (should-not (cl-some (lambda (o) (overlay-get o 'yas--snippet))
+                           (overlays-in (point-min) (point-max)))))))
+
 
 (defun yas-test-expand-and-undo (mode snippet-entry initial-contents)
   (yas-with-snippet-dirs
@@ -517,16 +543,19 @@ XXXXX   ------------------------"))))
     (yas-mock-insert "foo bar")
     (ert-simulate-command '(yas-next-field))
     (goto-char (point-min))
-    (let ((expected (with-temp-buffer
-                      (insert (format (concat "* Test foo bar\n"
-                                              "  " org-property-format "\n"
-                                              "  " org-property-format "\n"
-                                              "  " org-property-format)
-                                      ":PROPERTIES:" ""
-                                      ":ID:" "foo bar-after"
-                                      ":END:" ""))
-                      (delete-trailing-whitespace)
-                      (buffer-string))))
+    ;; The default value of `org-adapt-indentation' changed between Org-mode 9.4
+    ;; and 9.5, so force a specific value.
+    (let* ((org-adapt-indentation nil)
+           (expected (with-temp-buffer
+                       (insert (format (concat "* Test foo bar\n"
+                                               org-property-format "\n"
+                                               org-property-format "\n"
+                                               org-property-format)
+                                       ":PROPERTIES:" ""
+                                       ":ID:" "foo bar-after"
+                                       ":END:" ""))
+                       (delete-trailing-whitespace)
+                       (buffer-string))))
       ;; Some org-mode versions leave trailing whitespace, some don't.
       (delete-trailing-whitespace)
       (should (equal expected (buffer-string))))))
@@ -556,6 +585,22 @@ int foo()
   }
 }" (buffer-string)))))
 
+(ert-deftest indent-cc-mode-2 ()
+  "Handling of cc-mode's preprocessor indentation."
+  (with-temp-buffer
+    (c-mode)
+    (yas-minor-mode +1)
+    (yas-expand-snippet "\
+#ifndef `\"FOO\"`
+#define FOO
+#endif
+")
+    (should (string= "\
+#ifndef FOO
+#define FOO
+#endif
+" (buffer-substring-no-properties (point-min) (point-max))))))
+
 (ert-deftest indent-snippet-mode ()
   "Handling of snippet-mode indentation."
   ;; This is an interesting case because newlines match [[:space:]] in
@@ -577,6 +622,28 @@ int foo()
     (yas-mock-insert "xxx")
     ;; Assuming 2 space indent.
     (should (string= "def xxx\n  xxx\nend" (buffer-string)))))
+
+(defun yas-test-delete-and-insert-command (beg end new)
+  "Simulate a completion command (similar to company-mode)."
+  (interactive "r\ns")
+  ;; Simulate a completion command (like what company-mode does)
+  ;; which deletes the "xxx" and then replaces it with something
+  ;; else.
+  (delete-region beg end)
+  (insert new))
+
+(ert-deftest indent-mirrors-on-complex-update ()
+  "Don't get messed up by command that deletes and then inserts."
+  (with-temp-buffer
+    (ruby-mode)
+    (yas-minor-mode 1)
+    (yas-expand-snippet "def foo\n  ${1:slice} = append($1)\nend")
+    (yas-mock-insert "xxx")
+    (ert-simulate-command `(yas-test-delete-and-insert-command
+                            ,(- (point) 3) ,(point) ,"yyy"))
+    ;; Assuming 2 space indent.
+    (should (string= "def foo\n  yyy = append(yyy)\nend" (buffer-string)))))
+
 
 
 (ert-deftest snippet-with-multiline-mirrors-issue-665 ()
@@ -603,9 +670,37 @@ mapconcat #'(lambda (arg)
       (ert-simulate-command '(yas-next-field))
       (should (looking-at (concat "blo" expected))))))
 
+(defmacro yas-saving-variables (&rest body)
+  (declare (debug t))
+  `(yas-call-with-saving-variables #'(lambda () ,@body)))
+
+(ert-deftest auto-next-field ()
+  "Automatically exit a field after evaluating its transform."
+  (with-temp-buffer
+    (yas-saving-variables
+     (yas-with-snippet-dirs
+      `((".emacs.d/snippets"
+         ("ruby-mode" ("snip" . ,(concat "foo ${1:$$"
+                                         (prin1-to-string '(yas-auto-next
+                                                            (yas-choose-value
+                                                             "bar" "foo")))
+                                         "} ${2:$$"
+                                         (prin1-to-string '(yas-auto-next
+                                                            (yas-choose-value
+                                                             "too" "foo")))
+                                         "} baz ${3:quinn} quinn")))))
+      (yas-reload-all)
+      (ruby-mode)
+      (yas-minor-mode 1)
+      (set (make-local-variable 'yas-prompt-functions) `(yas-no-prompt))
+      (yas-mock-insert "snip")
+      (ert-simulate-command '(yas-expand))
+      (yas-mock-insert "quux")
+      (should (equal "foo bar too baz quux quinn" (buffer-string)))))))
+
 
 ;;; Snippet expansion and character escaping
-;;; Thanks to @zw963 (Billy) for the testing
+;; Thanks to @zw963 (Billy) for the testing
 ;;;
 (ert-deftest escape-dollar ()
   (with-temp-buffer
@@ -676,6 +771,20 @@ mapconcat #'(lambda (arg)
       (yas-expand-snippet "Look ma! ${1:`(yas-selected-text)`} OK?")
       (should (string= (yas--buffer-contents) "Look ma! He)}o world! OK?")))))
 
+(ert-deftest escaping-for-lsp-style-snippet-syntax ()
+  "See Github #979."
+  (should
+   (string= (with-temp-buffer
+              (yas-minor-mode 1)
+              (yas-expand-snippet
+               "Printf(${1:format string}, ${2:args ...interface{\\}})${0}")
+              (yas--buffer-contents))
+            (with-temp-buffer
+              (yas-minor-mode 1)
+              (yas-expand-snippet
+               "Printf(${1:format string}, ${2:args ...interface\\{\\}})${0}")
+              (yas--buffer-contents)))))
+
 (ert-deftest insert-snippet-with-backslashes-in-active-field ()
   ;; This test case fails if `yas--inhibit-overlay-hooks' is not bound
   ;; in `yas-expand-snippet' (see Github #844).
@@ -728,7 +837,7 @@ mapconcat #'(lambda (arg)
   ;; See https://github.com/joaotavora/yasnippet/issues/800.
   (with-temp-buffer
     (yas-minor-mode 1)
-    (should-error (yas-expand-snippet "```foo\n\n```"))
+    (yas-expand-snippet "```foo\n\n```")
     (erase-buffer) ; Bad snippet may leave wrong text.
     ;; But expanding the corrected snippet should work fine.
     (yas-expand-snippet "\\`\\`\\`foo\n\n\\`\\`\\`")
@@ -736,6 +845,8 @@ mapconcat #'(lambda (arg)
 
 (defmacro yas--with-font-locked-temp-buffer (&rest body)
   "Like `with-temp-buffer', but ensure `font-lock-mode'."
+  ;; NOTE: Replace all uses of this with `font-lock-ensure' when we
+  ;; drop support for Emacs 24.
   (declare (indent 0) (debug t))
   (let ((temp-buffer (make-symbol "temp-buffer")))
     ;; NOTE: buffer name must not start with a space, otherwise
@@ -754,11 +865,9 @@ mapconcat #'(lambda (arg)
              (and (buffer-name ,temp-buffer)
                   (kill-buffer ,temp-buffer))))))))
 
-(defmacro yas-saving-variables (&rest body)
-  (declare (debug t))
-  `(yas-call-with-saving-variables #'(lambda () ,@body)))
-
 (ert-deftest example-for-issue-474 ()
+  ;; This issue only reproduces in Emacs 24.3, most likely due to some
+  ;; bug in the cc-mode included with that Emacs version.
   (yas--with-font-locked-temp-buffer
     (c-mode)
     (yas-minor-mode 1)
@@ -831,6 +940,18 @@ mapconcat #'(lambda (arg)
       (should (string= (yas--buffer-contents) "foobaaarfail"))
       (yas-mock-insert "baz")
       (should (string= (yas--buffer-contents) "foobaaarbazok")))))
+
+(ert-deftest yas-escaping-close-brace ()
+  "Close braces may be escaped with braces, reduction from eglot issue.
+See https://github.com/joaotavora/eglot/issues/336."
+  (with-temp-buffer
+    (yas-minor-mode +1)
+    ;; NOTE: put a period at the end to avoid the bug tested by
+    ;; `protection-overlay-no-cheating'.
+    (yas-expand-snippet "${1:one{\\}}, ${2:two{\\}}.")
+    (yas-next-field)
+    (yas-next-field)
+    (should (string= (buffer-string) "one{}, two{}."))))
 
 
 ;;; Misc tests
@@ -948,7 +1069,7 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
            ("'quote" . "OKquoteOK"))))
        (yas-reload-all)
        (emacs-lisp-mode)
-       (yas-minor-mode-on)
+       (yas-minor-mode +1)
        (let ((yas-key-syntaxes '("w" "w_")))
          (let ((yas--barbaz t))
            (yas-should-expand '(("foo-barbaz" . "foo-OKbarbazOK")
@@ -983,6 +1104,24 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
         (should (= (length snippets) 2))
         (should (= (length (yas--snippet-fields (nth 0 snippets))) 2))
         (should (= (length (yas--snippet-fields (nth 1 snippets))) 1))))))
+
+(ert-deftest nested-snippet-expansion-depth-2 ()
+  (with-temp-buffer
+    (yas-with-snippet-dirs
+      '((".emacs.d/snippets"
+         ("text-mode"
+          ("nest" . "( $1"))))
+      (let ((yas-triggers-in-field t))
+        (yas-reload-all)
+        (text-mode)
+        (yas-minor-mode +1)
+        (dotimes (_ 3)
+          (yas-mock-insert "nest")
+          (ert-simulate-command '(yas-expand)))
+        (dotimes (_ 3)
+          (yas-mock-insert ")")
+          (ert-simulate-command '(yas-next-field-or-maybe-expand)))
+        ))))
 
 (ert-deftest nested-snippet-expansion-2 ()
   (let ((yas-triggers-in-field t))
@@ -1030,20 +1169,64 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
       (ert-simulate-command '(yas-next-field-or-maybe-expand))
       (should (string= (buffer-string) "\\sqrt[3]{\\sqrt[5]{2}}")))))
 
+(ert-deftest nested-snippet-expansion-4 ()
+  "See Github #959."
+  (let ((yas-triggers-in-field t))
+    (yas-with-snippet-dirs
+     '((".emacs.d/snippets"
+        ("text-mode"
+         ("ch" . "<-${1:ch}"))))
+     (yas-reload-all)
+     (text-mode)
+     (yas-minor-mode +1)
+     (yas-expand-snippet "ch$0\n")
+     (ert-simulate-command '(yas-expand))
+     (ert-simulate-command '(forward-char 2))
+     (ert-simulate-command '(yas-expand))
+     (yas-mock-insert "abc")
+     (ert-simulate-command '(yas-next-field-or-maybe-expand))
+     (yas-mock-insert "def")
+     (ert-simulate-command '(yas-next-field-or-maybe-expand))
+     (should (string= (buffer-string) "<-<-abcdef\n")))))
+
+(ert-deftest nested-snippet-expansion-5-nested-delete ()
+  "See Github #996."
+  (let ((yas-triggers-in-field t))
+    (yas-with-snippet-dirs
+     '((".emacs.d/snippets"
+        ("text-mode"
+         ("sel" . "${1:ch}")
+         ("ch" . "<-${1:ch}"))))
+     (yas-reload-all)
+     (text-mode)
+     (yas-minor-mode +1)
+     (insert "sel")
+     (ert-simulate-command '(yas-expand))
+     (ert-simulate-command '(forward-word 1))
+     (ert-simulate-command '(yas-expand))
+     (ert-simulate-command '(forward-word 1))
+     ;; The (cl-assert (memq pfield (yas--snippet-fields psnippet)))
+     ;; in `yas--on-field-overlay-modification' failed here.
+     (ert-simulate-command '(delete-backward-char 1))
+     (should (string= (buffer-string) "<-c\n")))))
+
 
 ;;; Loading
 ;;;
 
 (defmacro yas-with-overriden-buffer-list (&rest body)
   (declare (debug t))
+  ;; FIXME: This macro was added by commit 185c771dedea as part of the
+  ;; fix for https://github.com/joaotavora/yasnippet/issues/253,
+  ;; but I don't know why it was/is needed.
   (let ((saved-sym (make-symbol "yas--buffer-list")))
     `(let ((,saved-sym (symbol-function 'buffer-list)))
        (cl-letf (((symbol-function 'buffer-list)
-                  (lambda ()
+                  (lambda (&rest args)
                     (cl-remove-if (lambda (buf)
                                     (with-current-buffer buf
                                       (eq major-mode 'lisp-interaction-mode)))
-                                  (funcall ,saved-sym)))))
+                                  (apply ,saved-sym args)))))
          ,@body))))
 
 
@@ -1122,7 +1305,7 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
      (yas-minor-mode +1)
      (should (equal (yas--template-content (yas-lookup-snippet "one"))
                     "one"))
-     (should (eq (yas--key-binding "\C-c1") 'yas-expand-from-keymap))
+     (should (eq (yas--key-binding "\C-c1") #'yas-expand-from-keymap))
      (yas-define-snippets
       'text-mode '(("_1" "one!" "won" nil nil nil nil nil "uuid-1")))
      (should (null (yas-lookup-snippet "one" nil 'noerror)))
@@ -1190,19 +1373,20 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
      (yas-reload-all)
      (with-temp-buffer
        (let* ((major-mode 'c-mode)
-              (expected `(c-mode
+              (expected `(fundamental-mode
+                          c-mode
                           cc-mode
                           yet-another-c-mode
                           and-also-this-one
                           and-that-one
-                          ;; prog-mode doesn't exist in emacs 23.4
-                          ,@(if (fboundp 'prog-mode)
-                                '(prog-mode))
+                          prog-mode
+                          ,@(if (fboundp 'lisp-data-mode) ;Emacs≥28
+                                '(lisp-data-mode))
                           emacs-lisp-mode
                           lisp-interaction-mode))
               (observed (yas--modes-to-activate)))
          (should (equal major-mode (car observed)))
-         (should (equal (sort expected #'string<) (sort observed #'string<))))))))
+         (should-not (cl-set-exclusive-or expected observed)))))))
 
 (ert-deftest extra-modes-parenthood ()
   "Test activation of parents of `yas--extra-modes'."
@@ -1219,39 +1403,44 @@ hello ${1:$(when (stringp yas-text) (funcall func yas-text))} foo${1:$$(concat \
        (yas-activate-extra-mode 'and-that-one)
        (let* ((expected-first `(and-that-one
                                 yet-another-c-mode
-                                c-mode
-                                ,major-mode))
+                                c-mode))
               (expected-rest `(cc-mode
-                               ;; prog-mode doesn't exist in emacs 23.4
-                               ,@(if (fboundp 'prog-mode)
-                                     '(prog-mode))
+                               prog-mode
+                               ,@(if (fboundp 'lisp-data-mode) ;Emacs≥28
+                                     '(lisp-data-mode))
                                emacs-lisp-mode
                                and-also-this-one
                                lisp-interaction-mode))
-              (observed (yas--modes-to-activate)))
-         (should (equal expected-first
-                        (cl-subseq observed 0 (length expected-first))))
-         (should (equal (sort expected-rest #'string<)
-                        (sort (cl-subseq observed (length expected-first)) #'string<))))))))
+              (observed (remq 'fundamental-mode (yas--modes-to-activate))))
+         (should-not (cl-set-exclusive-or
+                      expected-first
+                      (cl-subseq observed 0 (length expected-first))))
+         (should-not (cl-set-exclusive-or
+                      expected-rest
+                      (cl-subseq observed (length expected-first)))))))))
 
-(defalias 'yas--phony-c-mode 'c-mode)
+(defalias 'yas--phony-c-mode #'c-mode)
 
 (ert-deftest issue-492-and-494 ()
+  "Aliases like `yas--phony-c-mode' should be considered as \"derived\"."
   (define-derived-mode yas--test-mode yas--phony-c-mode "Just a test mode")
   (yas-with-snippet-dirs '((".emacs.d/snippets"
                             ("yas--test-mode")))
-                         (yas-reload-all)
-                         (with-temp-buffer
-                           (let* ((major-mode 'yas--test-mode)
-                                  (expected `(c-mode
-                                              ,@(if (fboundp 'prog-mode)
-                                                    '(prog-mode))
-                                              yas--phony-c-mode
-                                              yas--test-mode))
-                                  (observed (yas--modes-to-activate)))
-                             (should (null (cl-set-exclusive-or expected observed)))
-                             (should (= (length expected)
-                                        (length observed)))))))
+    (yas-reload-all)
+    (with-temp-buffer
+      (let* ((major-mode 'yas--test-mode)
+             (expected `(fundamental-mode
+                         c-mode
+                         yas--phony-c-mode
+                         yas--test-mode))
+             ;; The set of mode depends on some external factors:
+             ;; `prog-mode': if cc-mode.el has been loaded.
+             ;; `cc-mode': if we added `cc-mode' as yas--parent of `c-mode'.
+             (observed (cl-set-difference (yas--modes-to-activate)
+                                          '(prog-mode cc-mode))))
+        (should-not (cl-set-exclusive-or expected observed))
+        (should (= (length expected)
+                   (length observed)))))))
 
 (define-derived-mode yas--test-mode c-mode "Just a test mode")
 (define-derived-mode yas--another-test-mode c-mode "Another test mode")
@@ -1455,31 +1644,31 @@ TODO: be meaner"
     (with-temp-buffer
       (yas-minor-mode -1)
       (insert "foo")
-      (should (not (eq (key-binding (yas--read-keybinding "<tab>")) 'yas-expand)))
+      (should-not (eq (key-binding (kbd "TAB")) #'yas-expand))
       (yas-minor-mode 1)
-      (should (eq (key-binding (yas--read-keybinding "<tab>")) 'yas-expand))
+      (should (eq (key-binding (kbd "TAB")) #'yas-expand))
       (yas-expand-snippet "$1 $2 $3")
-      (should (eq (key-binding [(tab)]) 'yas-next-field-or-maybe-expand))
-      (should (eq (key-binding (kbd "TAB")) 'yas-next-field-or-maybe-expand))
-      (should (eq (key-binding [(shift tab)]) 'yas-prev-field))
-      (should (eq (key-binding [backtab]) 'yas-prev-field))))))
+      ;; (should (eq (key-binding [tab]) #'yas-next-field-or-maybe-expand))
+      (should (eq (key-binding (kbd "TAB")) #'yas-next-field-or-maybe-expand))
+      (should (eq (key-binding [(shift tab)]) #'yas-prev-field))
+      (should (eq (key-binding [backtab]) #'yas-prev-field))))))
 
 (ert-deftest test-rebindings ()
-  (let* ((yas-minor-mode-map (copy-keymap yas-minor-mode-map))
+  (let* ((test-map (make-composed-keymap nil yas-minor-mode-map))
          (minor-mode-map-alist
-          (cons `(yas-minor-mode . ,yas-minor-mode-map)
+          (cons `(yas-minor-mode . ,test-map)
                 (cl-remove 'yas-minor-mode minor-mode-map-alist
                            :test #'eq :key #'car))))
-    (define-key yas-minor-mode-map [tab] nil)
-    (define-key yas-minor-mode-map (kbd "TAB") nil)
-    (define-key yas-minor-mode-map (kbd "SPC") 'yas-expand)
+    (define-key test-map [tab] nil)
+    (define-key test-map (kbd "TAB") nil)
+    (define-key test-map (kbd "SPC") #'yas-expand)
     (with-temp-buffer
       (yas-minor-mode 1)
-      (should-not (eq (key-binding (kbd "TAB")) 'yas-expand))
-      (should (eq (key-binding (kbd "SPC")) 'yas-expand))
+      (should-not (eq (key-binding (kbd "TAB")) #'yas-expand))
+      (should (eq (key-binding (kbd "SPC")) #'yas-expand))
       (yas-reload-all)
-      (should-not (eq (key-binding (kbd "TAB")) 'yas-expand))
-      (should (eq (key-binding (kbd "SPC")) 'yas-expand)))))
+      (should-not (eq (key-binding (kbd "TAB")) #'yas-expand))
+      (should (eq (key-binding (kbd "SPC")) #'yas-expand)))))
 
 (ert-deftest test-yas-in-org ()
   (yas-saving-variables
@@ -1492,20 +1681,40 @@ TODO: be meaner"
       (org-mode)
       (yas-minor-mode 1)
       (insert "foo")
-      (should (eq (key-binding [(tab)]) 'yas-expand))
-      (should (eq (key-binding (kbd "TAB")) 'yas-expand))))))
+      ;; (should (eq (key-binding [tab]) #'yas-expand))
+      (should (eq (key-binding (kbd "TAB")) #'yas-expand))))))
 
-(ert-deftest yas-org-native-tab-in-source-block ()
+(ert-deftest yas-org-native-tab-in-source-block-text ()
   "Test expansion of snippets in org source blocks."
-  :expected-result (if (and (fboundp 'org-in-src-block-p) (version< (org-version) "9"))
+  ;; org 9+ no longer runs fontification for text-mode, so our hacks
+  ;; don't work.  Note that old ert doesn't have skipping, so we have
+  ;; to expect failure instead.  Starting with Org-mode 9.5 this seems
+  ;; to work again.
+  :expected-result (if (and (fboundp 'org-in-src-block-p)
+                            (or (version< (org-version) "9")
+                                (version<= "9.5" (org-version))))
                        :passed :failed)
+  (let ((text-mode-hook #'yas-minor-mode))
+    (do-yas-org-native-tab-in-source-block "text")))
+
+(ert-deftest yas-org-native-tab-in-source-block-emacs-lisp ()
+  "Test expansion of snippets in org source blocks."
+  :expected-result (if (fboundp 'org-in-src-block-p)
+                       :passed :failed)
+  (let ((emacs-lisp-mode-hook #'yas-minor-mode)
+        ;; This makes the test a bit less comprehensive, but it's
+        ;; needed to avoid bumping into Emacs Bug#35264.
+        (org-src-preserve-indentation t))
+    (do-yas-org-native-tab-in-source-block "emacs-lisp")))
+
+(defun do-yas-org-native-tab-in-source-block (mode)
   (yas-saving-variables
    (yas-with-snippet-dirs
-    '((".emacs.d/snippets"
-       ("text-mode"
+    `((".emacs.d/snippets"
+       (,(concat mode "-mode")
         ("T" . "${1:one} $1\n${2:two} $2\n<<$0>> done!"))))
-    (let ((text-mode-hook '(yas-minor-mode))
-          (org-src-tab-acts-natively t)
+    ;; Binding both text and prog mode hook should cover everything.
+    (let ((org-src-tab-acts-natively t)
           ;; Org 8.x requires this in order for
           ;; `org-src-tab-acts-natively' to have effect.
           (org-src-fontify-natively t))
@@ -1514,8 +1723,8 @@ TODO: be meaner"
       (yas--with-font-locked-temp-buffer
        (org-mode)
        (yas-minor-mode 1)
-       (insert "#+BEGIN_SRC text\nT\n#+END_SRC")
-       (if (fboundp 'font-lock-ensure)
+       (insert "#+BEGIN_SRC " mode "\nT\n#+END_SRC")
+       (if (fboundp 'font-lock-ensure)  ;Emacs≥25
            (font-lock-ensure)
          (jit-lock-fontify-now))
        (re-search-backward "^T$") (goto-char (match-end 0))
@@ -1530,9 +1739,9 @@ TODO: be meaner"
        ;; Check snippet expansion, ignore leading whitespace due to
        ;; `org-edit-src-content-indentation'.
        (should (looking-at "\
-[[:space:]]*one one
-[[:space:]]*two two
-[[:space:]]*<<>> done!")))))))
+\[[:space:]]*one one
+\[[:space:]]*two two
+\[[:space:]]*<<>> done!")))))))
 
 
 (ert-deftest test-yas-activate-extra-modes ()
@@ -1548,7 +1757,7 @@ add the snippets associated with the given mode."
            ("car" . "(car )"))))
        (yas-reload-all)
        (emacs-lisp-mode)
-       (yas-minor-mode-on)
+       (yas-minor-mode +1)
        (yas-activate-extra-mode 'markdown-mode)
        (should (eq 'markdown-mode (car yas--extra-modes)))
        (yas-should-expand '(("_" . "_Text_ ")))

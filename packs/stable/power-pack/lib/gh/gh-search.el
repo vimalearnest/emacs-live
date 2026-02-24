@@ -1,4 +1,4 @@
-;;; gh-search.el --- repository search for gh.el
+;;; gh-search.el --- repository search for gh.el -*- lexical-binding: t; -*-
 ;; Copyright (C) 2016  Ivan Malison
 
 ;; Author: Ivan Malison <IvanMalison@gmail.com>
@@ -25,13 +25,12 @@
 (require 'gh-users)
 (require 'gh-repos)
 
-;;;###autoload
 (defclass gh-search-api (gh-api-v3)
   ((repo-cls :allocation :class :initform gh-repos-repo)
    (user-cls :allocation :class :initform gh-users-user)))
 
 (defmacro gh-search-method-builder (method-name uri process-result-function)
-  `(defmethod ,method-name ((search-api gh-search-api)
+  `(cl-defmethod ,method-name ((search-api gh-search-api)
                                query-string &optional page-limit
                                &rest additional-arguments)
      (unless (and (stringp query-string) (> (length query-string) 1))
@@ -43,7 +42,7 @@
       `((q . ,query-string) ,@additional-arguments) page-limit)))
 
 (defmacro gh-search-process-method-builder (method-name class-symbol)
-  `(defmethod ,method-name ((search-api gh-search-api) data)
+  `(cl-defmethod ,method-name ((search-api gh-search-api) data)
      (unless (listp data)
        (error "Did not recieve a list from the search query"))
      (let ((items (assoc 'items data)))

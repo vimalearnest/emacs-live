@@ -3,7 +3,8 @@
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
-;; Version: 1.7.3
+;; Version: 1.7.4
+;; Package-Requires: ((emacs "24.3"))
 ;; URL: https://github.com/Malabarba/spinner.el
 ;; Keywords: processes mode-line
 
@@ -98,7 +99,7 @@
 
 ;;; Code:
 (eval-when-compile
-  (require 'cl))
+  (require 'cl-lib))
 
 (defconst spinner-types
   '((3-line-clock . ["┤" "┘" "┴" "└" "├" "┌" "┬" "┐"])
@@ -118,7 +119,7 @@
     (box-in-box . ["◰" "◳" "◲" "◱"])
     (box-in-circle . ["◴" "◷" "◶" "◵"])
     (half-circle . ["◐" "◓" "◑" "◒"])
-    (moon . ["🌑" "🌘" "🌖" "🌕" "🌔" "🌒"]))
+    (moon . ["🌑" "🌘" "🌗" "🌖" "🌕" "🌔" "🌓" "🌒"]))
   "Predefined alist of spinners.
 Each car is a symbol identifying the spinner, and each cdr is a
 vector, the spinner itself.")
@@ -126,7 +127,7 @@ vector, the spinner itself.")
 (defun spinner-make-progress-bar (width &optional char)
   "Return a vector of strings of the given WIDTH.
 The vector is a valid spinner type and is similar to the
-`progress-bar' spinner, except without the sorrounding brackets.
+`progress-bar' spinner, except without the surrounding brackets.
 CHAR is the character to use for the moving bar (defaults to =)."
   (let ((whole-string (concat (make-string (1- width) ?\s)
                               (make-string 4 (or char ?=))
@@ -135,7 +136,7 @@ CHAR is the character to use for the moving bar (defaults to =)."
                             (number-sequence (+ width 3) 0 -1)))))
 
 (defvar spinner-current nil
-  "Spinner curently being displayed on the `mode-line-process'.")
+  "Spinner currently being displayed on the `mode-line-process'.")
 (make-variable-buffer-local 'spinner-current)
 
 (defconst spinner--mode-line-construct
@@ -158,7 +159,7 @@ below).
 If TYPE is nil, the frames of this spinner are given by the first
 element of `spinner-types'.
 If TYPE is a symbol, it specifies an element of `spinner-types'.
-If TYPE is 'random, use a random element of `spinner-types'.
+If TYPE is `random', use a random element of `spinner-types'.
 If TYPE is a list, it should be a list of symbols, and a random
 one is chosen as the spinner type.
 If TYPE is a vector, it should be a vector of strings and these
@@ -176,10 +177,10 @@ own spinner animations."
    ((symbolp type) (cdr (assq type spinner-types)))
    (t (error "Unknown spinner type: %s" type))))
 
-(defstruct (spinner
-            (:copier nil)
-            (:conc-name spinner--)
-            (:constructor make-spinner (&optional type buffer-local frames-per-second delay-before-start)))
+(cl-defstruct (spinner
+               (:copier nil)
+               (:conc-name spinner--)
+               (:constructor make-spinner (&optional type buffer-local frames-per-second delay-before-start)))
   (frames (spinner--type-to-frames type))
   (counter 0)
   (fps (or frames-per-second spinner-frames-per-second))
@@ -205,7 +206,7 @@ buffer, use that instead of current buffer.
 
 When started, in order to function properly, the spinner runs a
 timer which periodically calls `force-mode-line-update' in the
-curent buffer.  If BUFFER-LOCAL was set at creation time, then
+current buffer.  If BUFFER-LOCAL was set at creation time, then
 `force-mode-line-update' is called in that buffer instead.  When
 the spinner is stopped, the timer is deactivated.
 
@@ -235,8 +236,8 @@ stop the SPINNER's timer."
         (spinner-stop spinner)
       ;; Increment
       (cl-callf (lambda (x) (if (< x 0)
-                        (1+ x)
-                      (% (1+ x) (length (spinner--frames spinner)))))
+                           (1+ x)
+                         (% (1+ x) (length (spinner--frames spinner)))))
           (spinner--counter spinner))
       ;; Update mode-line.
       (if (buffer-live-p buffer)
@@ -254,8 +255,9 @@ stop the SPINNER's timer."
 
     (unless (ignore-errors (> (spinner--fps spinner) 0))
       (error "A spinner's FPS must be a positive number"))
-    (setf (spinner--counter spinner) (round (- (* (or (spinner--delay spinner) 0)
-                                           (spinner--fps spinner)))))
+    (setf (spinner--counter spinner)
+          (round (- (* (or (spinner--delay spinner) 0)
+                       (spinner--fps spinner)))))
     ;; Create timer.
     (let* ((repeat (/ 1.0 (spinner--fps spinner)))
            (time (timer-next-integral-multiple-of-time (current-time) repeat))
@@ -275,7 +277,7 @@ stop the SPINNER's timer."
 If TYPE-OR-OBJECT is an object created with `make-spinner',
 simply activate it.  This method is designed for minor modes, so
 they can use the spinner as part of their lighter by doing:
-    '(:eval (spinner-print THE-SPINNER))
+    \\='(:eval (spinner-print THE-SPINNER))
 To stop this spinner, call `spinner-stop' on it.
 
 If TYPE-OR-OBJECT is anything else, a buffer-local spinner is
@@ -301,7 +303,8 @@ this time, in which case it won't display at all."
       (setq spinner-current (make-spinner type-or-object (current-buffer) fps delay)))
     (setq type-or-object spinner-current)
     ;; Maybe add to mode-line.
-    (unless (memq 'spinner--mode-line-construct mode-line-process)
+    (unless (and (listp mode-line-process)
+                 (memq 'spinner--mode-line-construct mode-line-process))
       (setq mode-line-process
             (list (or mode-line-process "")
                   'spinner--mode-line-construct))))
@@ -331,4 +334,7 @@ active spinner."
 
 (provide 'spinner)
 
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:
 ;;; spinner.el ends here

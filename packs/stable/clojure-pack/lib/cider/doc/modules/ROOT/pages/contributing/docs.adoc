@@ -1,0 +1,79 @@
+= Documentation
+
+Good documentation is just as important as good code.footnote:[If not even more important.]
+CIDER is a pretty complex project with numerous features and the user manual is one
+of the primary ways to discover those. Please, consider improving and extending it.
+
+== Overview
+
+The manual is generated from the AsciiDoc files in the https://github.com/clojure-emacs/cider/tree/master/doc[doc] folder of CIDER's GitHub repo and is published to https://docs.cider.mx.
+https://antora.org[Antora] is used to convert the AsciiDoc source into HTML.
+Antora's filesystem layout is described https://docs.antora.org/antora/3.1/component-structure/[here].
+
+== Installing Antora
+
+NOTE: The instructions here assume you already have (the right version of) node.js installed.
+
+Installing the Antora is super simple:
+
+[source]
+----
+$ npm install
+----
+
+Check out https://docs.antora.org/antora/3.1/install/install-antora/[the detailed installation instructions]
+if you run into any problems.
+
+== Editing the Docs
+
+If you want to make changes to the manual's page structure you'll have to edit
+https://github.com/clojure-emacs/cider/blob/master/doc/modules/ROOT/nav.adoc[nav.adoc].
+
+== Building the Docs Site
+
+To make changes to the manual you simply have to change the files under `doc`.
+
+You can build the documentation locally from the https://github.com/clojure-emacs/docs.cider.mx[docs.cider.mx] repo.
+
+[source,shell]
+----
+$ git clone https://github.com/clojure-emacs/docs.cider.mx
+$ cd docs.cider.mx
+$ make build
+----
+
+To check the generated site you can simply open `build/site/index.html` in your favourite browser.
+
+== Deploying the Docs Site
+
+NOTE: The manual will be regenerated manually periodically by CIDER's Core Team.
+
+We're currently publishing the user manual to GitHub Pages.
+The deployment is handled by a GitHub Actions workflow that builds and deploys the
+documentation every time something is changed in the documentation site's repository.
+It can also be triggered manually if needed.
+
+== Updating the Playbook
+
+IMPORTANT: Don't forget to update the manual's version metadata when cutting CIDER releases.
+It lives in `doc/antora.yml`.
+
+When cutting new releases you'll have to update `antora-playbook.yml` to mention
+their relevant tags from which the documentation needs to be built. Here's how this
+looks for one of the projects:
+
+[source]
+----
+- url: https://github.com/clojure-emacs/cider.git
+  branches: master
+  tags: ['v1.7.0', 'v1.8.0']
+  start_path: docs
+----
+
+TIP: You need to add one such block for each new CIDER module you're adding to the docs site.
+
+== Troubleshooting
+
+The most common mistake that people make is to forget to update the version of an Antora docs module
+after cutting a release. This will result in an error saying you've got the same version in two branches (e.g. `master`
+and `v1.0`). Fixing this is pretty simple - just update the version to `master` in `antora.yml`.

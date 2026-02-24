@@ -1,16 +1,34 @@
-.PHONY : test
+SHELL := /usr/bin/env bash
 
 EMACS ?= emacs
-CASK ?= cask
-LOADPATH = -L .
+EASK ?= eask
 
-ELPA_DIR = $(shell EMACS=$(EMACS) $(CASK) package-directory)
+TEST-FILES := $(shell ls test/git-gutter-*.el)
 
-test: elpa
-	$(CASK) exec $(EMACS) -Q -batch $(LOADPATH) \
-		-l test/test-git-gutter.el -f ert-run-tests-batch-and-exit
+.PHONY: clean checkdoc lint install compile test
 
-elpa: $(ELPA_DIR)
-$(ELPA_DIR): Cask
-	${CASK} install
-	touch $@
+ci: clean package install compile
+
+clean:
+	@echo "Cleaning..."
+	$(EASK) clean all
+
+package:
+	@echo "Packaging..."
+	$(EASK) package
+
+install:
+	@echo "Installing..."
+	$(EASK) install
+
+compile:
+	@echo "Compiling..."
+	$(EASK) compile
+
+lint:
+	@echo "Linting..."
+	$(EASK) lint package
+
+test:
+	@echo "Testing..."
+	$(EASK) exec ert-runner -L . $(LOAD-TEST-FILES) -t '!no-win' -t '!org'

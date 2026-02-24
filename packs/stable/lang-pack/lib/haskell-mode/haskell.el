@@ -38,6 +38,7 @@
 (defvar interactive-haskell-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-l") 'haskell-process-load-file)
+    (define-key map (kbd "C-c RET") 'haskell-load-and-run)  ;; == C-c C-m
     (define-key map (kbd "C-c C-r") 'haskell-process-reload)
     (define-key map (kbd "C-c C-t") 'haskell-process-do-type)
     (define-key map (kbd "C-c C-i") 'haskell-process-do-info)
@@ -166,11 +167,10 @@
   (interactive)
   (when (eq major-mode 'haskell-interactive-mode)
     (haskell-mode-toggle-interactive-prompt-state)
-    (unwind-protect
-        (when (and (boundp 'haskell-session)
-                   haskell-session
-                   (y-or-n-p "Kill the whole session? "))
-          (haskell-session-kill t)))
+    (when (and (boundp 'haskell-session)
+               haskell-session
+               (y-or-n-p "Kill the whole session? "))
+      (haskell-session-kill t))
     (haskell-mode-toggle-interactive-prompt-state t)))
 
 (defun haskell-session-make (name)
@@ -222,13 +222,12 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
     (when (not (string= name ""))
       (let ((session (haskell-session-lookup name)))
         (haskell-mode-toggle-interactive-prompt-state)
-        (unwind-protect
-            (if session
-                (when
-                    (y-or-n-p
-                     (format "Session %s already exists. Use it?" name))
-                  session)
-              (haskell-session-make name)))
+        (if session
+            (when
+                (y-or-n-p
+                 (format "Session %s already exists. Use it?" name))
+              session)
+          (haskell-session-make name))
         (haskell-mode-toggle-interactive-prompt-state t)))))
 
 ;;;###autoload
@@ -325,7 +324,7 @@ If `haskell-process-load-or-reload-prompt' is nil, accept `default'."
              (haskell-interactive-mode-error-backward)
              (haskell-interactive-jump-to-error-line)))))
 
-(defvar xref-prompt-for-identifier nil)
+(defvar xref-prompt-for-identifier)
 
 ;;;###autoload
 (defun haskell-mode-jump-to-tag (&optional next-p)
@@ -397,6 +396,17 @@ Give optional NEXT-P parameter to override value of
                                 nil
                                 (current-buffer)))
 
+(defvar haskell-load-and-run-expr-history nil
+  "History of expressions used in `haskell-load-and-run'.")
+
+(defun haskell-load-and-run (expr)
+  "Load the current buffer and run EXPR, e.g. \"main\"."
+  (interactive (list (read-string "Run expression: "
+                                  (car haskell-load-and-run-expr-history)
+                                  'haskell-load-and-run-expr-history)))
+  (haskell-process-load-file)
+  (haskell-interactive-mode-run-expr expr))
+
 ;;;###autoload
 (defun haskell-process-reload ()
   "Re-load the current buffer file."
@@ -446,9 +456,10 @@ Give optional NEXT-P parameter to override value of
                       (list "build --ghc-options=-fforce-recomp"))))))
 
 (defun haskell-process-file-loadish (command reload-p module-buffer)
-  "Run a loading-ish COMMAND that wants to pick up type errors\
-and things like that.  RELOAD-P indicates whether the notification
-should say 'reloaded' or 'loaded'.  MODULE-BUFFER may be used
+  "Run a loading-ish COMMAND.
+For example, a COMMAND that wants to pick up type errors and things like that.
+RELOAD-P indicates whether the notification
+should say \\='reloaded\\=' or \\='loaded\\='.  MODULE-BUFFER may be used
 for various things, but is optional."
   (let ((session (haskell-session)))
     (haskell-session-current-dir session)

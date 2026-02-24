@@ -1,6 +1,6 @@
-;;; test-ob-sed.el --- tests for ob-sed.el
+;;; test-ob-sed.el --- tests for ob-sed.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2015 Bjarte Johansen
+;; Copyright (c) 2015, 2019 Bjarte Johansen
 ;; Authors: Bjarte Johansen
 
 ;; This file is not part of GNU Emacs.
@@ -16,14 +16,14 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
 (require 'ob-sed)
 (org-test-for-executable "sed")
 (unless (featurep 'ob-sed)
-  (signal 'missing-test-dependency "Support for Sed code blocks"))
+  (signal 'missing-test-dependency '("Support for Sed code blocks")))
 
 (ert-deftest ob-sed-test/simple-execution-of-script ()
   "Test simple execution of script."
@@ -58,5 +58,5 @@
 			 (buffer-string)))))))
 
 
-
+(provide 'test-ob-sed)
 ;;; test-ob-sed ends here

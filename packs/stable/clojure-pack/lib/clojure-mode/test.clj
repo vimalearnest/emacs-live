@@ -51,7 +51,7 @@
     minnow))
 
 ;; character literals
-[\a \newline \u0032 \/ \+ \,, \;]
+[\a \newline \u0032 \/ \+ \,, \; \( \% \)]
 
 ;; TODO change font-face for sexps starting with @,#
 (comment ;; examples
@@ -163,6 +163,11 @@
   {:oneword/ve/yCom|pLex.stu-ff 0}
   {:oneword/.ve/yCom|pLex.stu-ff 0}
 
+  :1oneword
+  :ns/1word
+  :1ns/word
+  :1ns/1word
+
   {:seg.mnt 0}
   ;; {:@seg.mnt 0} ; not allowed
   {:#seg.mnt 0}
@@ -222,6 +227,14 @@
   ([x y] (. clojure.lang.Numbers (max x y)))
   ([x y & more]
      (reduce1 max (max x y) more)))
+
+
+;; definitions with metadata only don't cause freezing
+(def ^String)
+
+(defmulti multi (fn [a _] a))
+(defmethod multi :test [_ b] b)
+(defmethod multi :best [_ b] b)
 
 (defn ^String reverse
   "Returns s with its characters reversed."

@@ -1,56 +1,31 @@
-export EMACS ?= emacs
-EMACSFLAGS = -L .
-CASK = cask
-VERSION = $(shell git describe --tags --abbrev=0 | sed 's/^v//')
-PACKAGE_NAME = cider-$(VERSION)
+.PHONY: clean compile lint test-all test-integration test-unit
+.DEFAULT_GOAL := test
 
-ELS = $(wildcard *.el)
-LINTELS = $(filter-out cider-autoloads.el,$(ELS))
-OBJECTS = $(ELS:.el=.elc)
+# Per our CircleCI, linting/compiling assumes Emacs 28.
+# If you primarily use a different version, you can download Emacs 28 to a separate directory and set up:
+# export ELDEV_EMACS="$HOME/emacs28/Emacs.app/Contents/MacOS/Emacs"
 
-.PHONY: elpa build version test lint clean elpaclean run-cider
-
-.depend: $(ELS)
-	@echo Compute dependencies
-	@rm -f .depend
-	@for f in $(ELS); do \
-		sed -n "s/(require '\(\(cider\|nrepl\)-.*\)).*$$/$${f}c: \1.elc/p" $$f >> .depend;\
-	done
-
--include .depend
-
-elpa-$(EMACS):
-	$(CASK) install
-	$(CASK) update
-	touch $@
-
-elpa: elpa-$(EMACS)
-
-build: version elpa
-	$(CASK) build
-
-version:
-	$(EMACS) --version
-
-test: version build
-	$(CASK) exec buttercup -L . -L ./test/utils/
-
-lint: version elpa
-	$(CASK) exec $(EMACS) -Q --batch \
-		--eval "(setq enable-local-variables :safe)" \
-		-l elisp-lint.el -f elisp-lint-files-batch \
-		--no-package-format \
-                --no-fill-column \
-		$(LINTELS)
-
-test-all: lint test
-
+# Remove byte-compilation artifacts, which can alter the result of the test suite:
 clean:
-	rm -f .depend $(OBJECTS)
+	eldev clean
 
-elpaclean: clean
-	rm -f elpa*
-	rm -rf .cask # Clean packages installed for development
+# You can find a generic `eldev` installation script in https://github.com/emacs-eldev/eldev/blob/master/webinstall/eldev
+# (Don't use the one defined for CircleCI in your local machine)
 
-run-cider: elpa
-	cask exec $(EMACS) -Q -L . --eval "(require 'cider)"
+lint: clean
+	eldev lint -c
+
+# Checks for byte-compilation warnings.
+compile: clean
+	 eldev -dtT compile --warnings-as-errors
+
+test-all: clean
+	eldev -dtT -p test --test-type all
+
+test-integration: clean
+	eldev -dtT -p test --test-type integration
+
+test-unit: clean
+	eldev -dtT -p test
+
+test: lint test-unit compile

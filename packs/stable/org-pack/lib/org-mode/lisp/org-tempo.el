@@ -1,10 +1,10 @@
 ;;; org-tempo.el --- Template expansion for Org structures -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2025 Free Software Foundation, Inc.
 ;;
 ;; Author: Rasmus Pank Roulund <emacs at pank dot eu>
-;; Keywords: outlines, hypermedia, calendar, wp
-;; Homepage: http://orgmode.org
+;; Keywords: outlines, hypermedia, calendar, text
+;; URL: https://orgmode.org
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -24,7 +24,7 @@
 ;;; Commentary:
 ;;
 ;; Org Tempo reimplements completions of structure template before
-;; point like `org-try-structure-completion' in Org v9.1 and earlier.
+;; point in Org v9.1 and earlier.
 ;; For example, strings like "<e" at the beginning of the line will be
 ;; expanded to an example block.
 ;;
@@ -37,6 +37,9 @@
 ;; examples.
 ;;
 ;;; Code:
+
+(require 'org-macs)
+(org-assert-version)
 
 (require 'tempo)
 (require 'cl-lib)
@@ -63,11 +66,10 @@
 This is an alist of KEY characters and corresponding KEYWORDS,
 just like `org-structure-template-alist'.  The tempo snippet
 \"<KEY\" will be expanded using the KEYWORD value.  For example
-\"<l\" at the beginning of a line is expanded to \"#+latex:\".
+\"<L\" at the beginning of a line is expanded to \"#+latex:\".
 
-Do not use \"I\" as a KEY, as it it reserved for expanding
+Do not use \"I\" as a KEY, as it is reserved for expanding
 \"#+include\"."
-  :group 'org-tempo
   :type '(repeat (cons (string :tag "Key")
 		       (string :tag "Keyword")))
   :package-version '(Org . "9.2"))
@@ -102,6 +104,8 @@ Tempo templates will be added."
 
 Go through `org-structure-template-alist' and
 `org-tempo-keywords-alist' and update tempo templates."
+  (mapc #'org--check-org-structure-template-alist '(org-structure-template-alist
+						    org-tempo-keywords-alist))
   (let ((keys (org-tempo--keys)))
     ;; Check for duplicated snippet keys and warn if any are found.
     (when (> (length keys) (length (delete-dups keys)))
@@ -114,21 +118,28 @@ Go through `org-structure-template-alist' and
     (mapc #'org-tempo-add-keyword org-tempo-keywords-alist)))
 
 (defun org-tempo-add-block (entry)
-  "Add block entry from `org-structure-template-alist'."
+  "Add block ENTRY from `org-structure-template-alist'."
   (let* ((key (format "<%s" (car entry)))
 	 (name (cdr entry))
-	 (special (member name '("src" "export"))))
+	 (special (member name '("src" "export")))
+         (upcase? (string= (car (split-string name))
+                           (upcase (car (split-string name))))))
     (tempo-define-template (format "org-%s" (replace-regexp-in-string " " "-" name))
-			   `(,(format "#+begin_%s%s" name (if special " " ""))
-			     ,(when special 'p) '> n '> ,(unless special 'p) n
-			     ,(format "#+end_%s" (car (split-string name " ")))
+			   `(,(format "#+%s_%s%s"
+                                      (if upcase? "BEGIN" "begin")
+                                      name
+                                      (if special " " ""))
+			     ,(when special 'p) '> n ,(unless special 'p) n
+			     ,(format "#+%s_%s"
+                                      (if upcase? "END" "end")
+                                      (car (split-string name " ")))
 			     >)
 			   key
 			   (format "Insert a %s block" name)
 			   'org-tempo-tags)))
 
 (defun org-tempo-add-keyword (entry)
-  "Add keyword entry from `org-tempo-keywords-alist'."
+  "Add keyword ENTRY from `org-tempo-keywords-alist'."
   (let* ((key (format "<%s" (car entry)))
 	 (name (cdr entry)))
     (tempo-define-template (format "org-%s" (replace-regexp-in-string " " "-" name))
@@ -174,8 +185,8 @@ didn't succeed."
 ;; Org Tempo is set up with each new Org buffer and potentially in the
 ;; current Org buffer.
 
-(add-hook 'org-mode-hook 'org-tempo-setup)
-(add-hook 'org-tab-before-tab-emulation-hook 'org-tempo-complete-tag)
+(add-hook 'org-mode-hook #'org-tempo-setup)
+(add-hook 'org-tab-before-tab-emulation-hook #'org-tempo-complete-tag)
 
 ;; Enable Org Tempo in all open Org buffers.
 (dolist (b (org-buffer-list 'files))

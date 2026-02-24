@@ -1,6 +1,6 @@
 ;;; cider-tests--no-auto.el --- Non-automated tests -*- lexical-binding: t -*-
 
-;; Copyright © 2014-2018 Jeff Valk, Bozhidar Batsov and CIDER contributors
+;; Copyright © 2014-2026 Jeff Valk, Bozhidar Batsov and CIDER contributors
 
 ;; Author: Jeff Valk <jv@jeffvalk.com>
 
@@ -33,7 +33,8 @@
 (require 'buttercup)
 (require 'cider)
 (require 'subr-x)
-(require 'cider-compat)
+
+;; Please, for each `describe', ensure there's an `it' block, so that its execution is visible in CI.
 
 ;;; Docs
 ;; Presenting docs erroneously would cause an ugly scene.
@@ -52,7 +53,7 @@ from the latter. Remaining content is compared for string equality."
                         (replace-match ""))
                       (goto-line 2)
                       (buffer-substring (point) (point-max)))))
-        (cider-doc (if-let* ((doc-buffer (cider-doc-buffer-for sym))
+        (cider-doc (if-let* ((doc-buffer (cider-doc-buffer-for sym)))
                        (with-current-buffer doc-buffer
                          (let ((inhibit-read-only t))
                            (goto-char (point-min))

@@ -36,6 +36,7 @@
 (require 'haskell-utils)
 (require 'highlight-uses-mode)
 (require 'haskell-cabal)
+(require 'haskell-ghc-support)
 
 (defcustom haskell-mode-stylish-haskell-path "stylish-haskell"
   "Path to `stylish-haskell' executable."
@@ -45,7 +46,7 @@
 (defcustom haskell-mode-stylish-haskell-args nil
   "Arguments to pass to program specified by haskell-mode-stylish-haskell-path."
   :group 'haskell
-  :type 'list)
+  :type '(list string))
 
 (defcustom haskell-interactive-set-+c
   t
@@ -90,7 +91,7 @@ You can create new session using function `haskell-session-make'."
     (haskell-process-send-startup process)
     (unless (memq (haskell-process-type)
                   ;; These all set the proper CWD.
-                  (list 'cabal-repl 'cabal-new-repl 'stack-ghci))
+                  (list 'cabal-repl 'stack-ghci))
       (haskell-process-change-dir session
                                   process
                                   (haskell-session-current-dir session)))
@@ -191,29 +192,6 @@ MODULE-BUFFER is the actual Emacs buffer of the module being loaded."
 (defvar url-http-end-of-headers)
 (defvar haskell-cabal-targets-history nil
   "History list for session targets.")
-
-(defun haskell-process-hayoo-ident (ident)
-  "Hayoo for IDENT, return a list of modules"
-  ;; We need a real/simulated closure, because otherwise these
-  ;; variables will be unbound when the url-retrieve callback is
-  ;; called.
-  ;; TODO: Remove when this code is converted to lexical bindings by
-  ;; default (Emacs 24.1+)
-  (let ((url (format haskell-process-hayoo-query-url (url-hexify-string ident))))
-    (with-current-buffer (url-retrieve-synchronously url)
-      (if (= 200 url-http-response-status)
-          (progn
-            (goto-char url-http-end-of-headers)
-            (let* ((res (json-read))
-                   (results (assoc-default 'result res)))
-              ;; TODO: gather packages as well, and when we choose a
-              ;; given import, check that we have the package in the
-              ;; cabal file as well.
-              (cl-mapcan (lambda (r)
-                           ;; append converts from vector -> list
-                           (append (assoc-default 'resultModules r) nil))
-                         results)))
-        (warn "HTTP error %s fetching %s" url-http-response-status url)))))
 
 (defun haskell-process-hoogle-ident (ident)
   "Hoogle for IDENT, return a list of modules."
@@ -376,13 +354,14 @@ If the definition or tag is found, the location from which you jumped
 will be pushed onto `xref--marker-ring', so you can return to that
 position with `xref-pop-marker-stack'."
   (interactive "P")
-  (if (haskell-session-maybe)
-        (let ((initial-loc (point-marker))
-            (loc (haskell-mode-find-def (haskell-ident-at-point))))
-          (haskell-mode-handle-generic-loc loc)
-          (unless (equal initial-loc (point-marker))
-            (xref-push-marker-stack initial-loc)))
-      (call-interactively 'haskell-mode-tag-find)))
+  (if-let ((session (haskell-session-maybe))
+           (initial-loc (point-marker))
+           (loc (haskell-mode-find-def (haskell-ident-at-point))))
+      (progn
+        (haskell-mode-handle-generic-loc loc)
+        (unless (equal initial-loc (point-marker))
+          (xref-push-marker-stack initial-loc)))
+    (call-interactively 'haskell-mode-tag-find)))
 
 ;;;###autoload
 (defun haskell-mode-goto-loc ()
@@ -674,11 +653,11 @@ happened since function invocation)."
           (cl-case res-type
             ;; neither popup presentation buffer
             ;; nor insert response in error case
-            ('unknown-command
+            (unknown-command
              (message "This command requires GHCi 8+ or GHCi-ng. Please read command description for details."))
-            ('option-missing
+            (option-missing
              (message "Could not infer type signature. You need to load file first. Also :set +c is required, see customization `haskell-interactive-set-+c'. Please read command description for details."))
-            ('interactive-error (message "Wrong REPL response: %s" sig))
+            (interactive-error (message "Wrong REPL response: %s" sig))
             (otherwise
              (if insert-value
                  ;; Only insert type signature and do not present it
@@ -698,9 +677,9 @@ happened since function invocation)."
                             (cdr (reverse haskell-utils-async-post-command-flag))))
                ;; Present the result only when response is valid and not asked
                ;; to insert result
-               (haskell-command-echo-or-present response)))
+               (haskell-command-echo-or-present response))))
 
-            (haskell-utils-async-stop-watching-changes init-buffer))))))))
+          (haskell-utils-async-stop-watching-changes init-buffer)))))))
 
 (make-obsolete 'haskell-process-generate-tags
                'haskell-mode-generate-tags
@@ -731,12 +710,11 @@ function `xref-find-definitions' after new table was generated."
                   (haskell-mode-message-line "Tags generated."))))))
 
 (defun haskell-process-add-cabal-autogen ()
-  "Add cabal's autogen dir to the GHCi search path.
+  "Add the cabal autogen dir to the GHCi search path.
 Add <cabal-project-dir>/dist/build/autogen/ to GHCi seatch path.
-This allows modules such as 'Path_...', generated by cabal, to be
+This allows modules such as \"Path_...\", generated by cabal, to be
 loaded by GHCi."
-  (unless (or (eq 'cabal-repl (haskell-process-type))
-              (eq 'cabal-new-repl (haskell-process-type))) ;; redundant with "cabal repl"
+  (unless (eq 'cabal-repl (haskell-process-type))
     (let*
         ((session       (haskell-interactive-session))
          (cabal-dir     (haskell-session-cabal-dir session))
@@ -791,9 +769,8 @@ inferior GHCi process."
       (haskell-session-set-target session target)
       (when (not (string= old-target target))
         (haskell-mode-toggle-interactive-prompt-state)
-        (unwind-protect
-            (when (y-or-n-p "Target changed, restart haskell process? ")
-              (haskell-process-start session)))
+        (when (y-or-n-p "Target changed, restart haskell process? ")
+          (haskell-process-start session))
         (haskell-mode-toggle-interactive-prompt-state t)))))
 
 ;;;###autoload
@@ -957,6 +934,15 @@ newlines and extra whitespace in signature before insertion."
       (let ((col (current-column)))
         (insert sig "\n")
         (indent-to col)))))
+
+(defun haskell-command-insert-language-pragma (extension)
+  "Insert a {-# LANGUAGE _ #-} pragma at the top of the current
+buffer for the given extension."
+  (interactive
+   (list (completing-read "Extension: " haskell-ghc-supported-extensions)))
+  (save-excursion
+    (goto-char (point-min))
+    (insert (format "{-# LANGUAGE %s #-}\n" extension))))
 
 (provide 'haskell-commands)
 ;;; haskell-commands.el ends here

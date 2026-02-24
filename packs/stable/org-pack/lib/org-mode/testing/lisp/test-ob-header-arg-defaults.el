@@ -1,6 +1,6 @@
-;;; test-ob-header-arg-defaults.el --- tests for default header args from properties
+;;; test-ob-header-arg-defaults.el --- tests for default header args from properties  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2013, 2014 Achim Gratz
+;; Copyright (c) 2013, 2014, 2019 Achim Gratz
 ;; Authors: Achim Gratz
 
 ;; This file is not part of GNU Emacs.
@@ -16,7 +16,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 

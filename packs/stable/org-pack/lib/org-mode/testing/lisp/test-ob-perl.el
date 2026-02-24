@@ -1,6 +1,6 @@
-;;; test-ob-perl.el --- tests for ob-perl.el
+;;; test-ob-perl.el --- tests for ob-perl.el  -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2013, 2014 Achim Gratz
+;; Copyright (c) 2013, 2014, 2019 Achim Gratz
 ;; Authors: Achim Gratz
 
 ;; This file is not part of GNU Emacs.
@@ -16,12 +16,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (org-test-for-executable "perl")
 (unless (featurep 'ob-perl)
-  (signal 'missing-test-dependency "Support for perl code blocks"))
+  (signal 'missing-test-dependency '("Support for perl code blocks")))
 
 (ert-deftest test-ob-perl/simple-output ()
   (org-test-with-temp-text "

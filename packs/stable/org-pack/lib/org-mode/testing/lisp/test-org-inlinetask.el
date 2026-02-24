@@ -1,4 +1,4 @@
-;;; test-org-inlinetask.el --- Tests for org-inlinetask.el
+;;; test-org-inlinetask.el --- Tests for org-inlinetask.el  -*- lexical-binding: t; -*-
 
 ;; Copyright (c)  Marco Wahl
 ;; Authors: Marco Wahl
@@ -14,7 +14,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Comments:
 
@@ -146,9 +146,8 @@ p2
 *************** p3
 p4
 *************** END
-
 "
-     (outline-hide-subtree)
+     (org-fold-subtree t)
      (org-cycle)
      (and
       (not (invisible-p (1- (search-forward "p1"))))

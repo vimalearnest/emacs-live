@@ -2,6 +2,284 @@
 
 ## master (unreleased)
 
+### New features
+
+* [#687](https://github.com/clojure-emacs/clojure-mode/issues/687): Add `clojure-preferred-build-tool` to control project root detection when multiple build tool files exist. When unset, prefer directories containing `.git` as a tiebreaker.
+* [#688](https://github.com/clojure-emacs/clojure-mode/issues/688): Add `clojure-discard-face` for `#_` reader discard forms, allowing them to be styled differently from comments. Inherits from `font-lock-comment-face` by default.
+* Add project root detection for ClojureCLR (`deps-clr.edn`).
+
+### Changes
+
+* Update font-locking of built-in dynamic vars for Clojure 1.12.
+* Update `clojure-mode-extra-font-locking` for Clojure 1.10-1.12 (new functions in `clojure.core` and other bundled namespaces).
+* Add `clojure.repl` section to `clojure-mode-extra-font-locking`.
+* Remove non-existent entries from `clojure-mode-extra-font-locking` (`specify`, `specify!`, `special-form-anchor`, `syntax-symbol-anchor`, `stream?`).
+
+### Bugs fixed
+
+* Fix typos in `clojure-mode-extra-font-locking`: `halt-when?` -> `halt-when`, `simple-indent?` -> `simple-ident?`.
+* Fix `doc` and `find-doc` misplaced under `clojure.core` instead of `clojure.repl` in extra font-locking.
+
+## 5.21.0 (2026-02-18)
+
+### New features
+
+* [#650](https://github.com/clojure-emacs/clojure-mode/issues/650): Add `edn-mode`, a lightweight mode derived from `clojure-mode` with data-appropriate indentation for `.edn` files.
+* [#439](https://github.com/clojure-emacs/clojure-mode/issues/439): Add `interpreter-mode-alist` entries for `clojure`, `clj`, `planck`, `joker`, and `jank`, so that scripts with shebang lines are recognized automatically.
+
+### Bugs fixed
+
+* [#658](https://github.com/clojure-emacs/clojure-mode/issues/658): Fix `clojure-mode-version` returning `nil`.
+* [#686](https://github.com/clojure-emacs/clojure-mode/issues/686): Fix `clojure-find-def` failing when comments appear between the `def` form and the symbol name.
+* [#637](https://github.com/clojure-emacs/clojure-mode/issues/637): Fix `clojure-find-def` failing on symbols containing special characters (e.g. `defn+`).
+
+### Changes
+
+* [#482](https://github.com/clojure-emacs/clojure-mode/issues/482): Bind `clojure-align` to `C-c C-a` (following Emacs keybinding conventions). The old `C-c SPC` binding is deprecated and will be removed in a future release.
+* Bump the minimum required Emacs version to 27.1.
+
+## 5.20.0 (2025-05-27)
+
+### New features
+
+* Add `clojuredart-mode`, `joker-mode` and `jank-mode`, derived from `clojure-mode`.
+
+### Bugs fixed
+
+* [cider#3758](https://github.com/clojure-emacs/cider/issues/3758): Improve regexp for `clojure-find-def` to recognize more complex metadata on vars.
+* [#684](https://github.com/clojure-emacs/clojure-mode/issues/684): Restore `outline-regexp` pattern to permit outline handling of top-level forms.
+* Improve regexp for `clojure-find-def` to recognize `defn-` and other declarations on the form `def...-`.
+
+## 5.19.0 (2024-05-26)
+
+### Bugs fixed
+
+* Fix `clojure-align` when called from `clojure-ts-mode` major mode buffers.
+* [#671](https://github.com/clojure-emacs/clojure-mode/issues/671): Syntax highlighting for digits after the first in `%` args. (e.g. `%10`)
+* [#680](https://github.com/clojure-emacs/clojure-mode/issues/680): Change syntax class of ASCII control characters to punctuation, fixing situations where carriage returns were being interpreted as symbols.
+
+### Changes
+
+* [#675](https://github.com/clojure-emacs/clojure-mode/issues/675): Add `.lpy` to the list of known Clojure file extensions.
+
+## 5.18.1 (2023-11-24)
+
+### Bugs fixed
+
+* [#653](https://github.com/clojure-emacs/clojure-mode/issues/653): Don't highlight vars with colons as keywords.
+
+## 5.18.0 (2023-10-18)
+
+### Changes
+
+* [cider#2903](https://github.com/clojure-emacs/cider/issues/2903): Avoid `No comment syntax is defined` prompts.
+
+## 5.17.1 (2023-09-12)
+
+### Changes
+
+* Declare indentation for the `async` ClojureScript macro.
+
+## 5.17.0 (2023-09-11)
+
+### Changes
+
+* Improve support for multiple forms in the same line by replacing `beginning-of-defun` fn.
+
+### Bugs fixed
+
+* [#656](https://github.com/clojure-emacs/clojure-mode/issues/656): Fix `clojure-find-ns` when ns form is preceded by other forms.
+* [#593](https://github.com/clojure-emacs/clojure-mode/issues/593): Fix `clojure-find-ns` when ns form is preceded by whitespace or inside comment form.
+
+## 5.16.2 (2023-08-23)
+
+### Changes
+
+* `clojure-find-ns`: add an option to never raise errors, returning `nil` instead on unparseable ns forms.
+
+## 5.16.1 (2023-06-26)
+
+### Changes
+
+* Font-lock Lein's `defproject` as a keyword.
+
+### Bugs fixed
+
+* [#645](https://github.com/clojure-emacs/clojure-mode/issues/645): Fix infinite loop when sorting a ns with comments in the end.
+* [#586](https://github.com/clojure-emacs/clojure-mode/issues/586): Fix infinite loop when opening file containing `comment` with `clojure-toplevel-inside-comment-form` set to `t`.
+
+## 5.16.0 (2022-12-14)
+
+### Changes
+
+* [#641](https://github.com/clojure-emacs/clojure-mode/issues/641): Recognize nbb projects (identified by the presence of `nbb.edn`).
+* [#629](https://github.com/clojure-emacs/clojure-mode/pull/629): Set `add-log-current-defun-function` to new function `clojure-current-defun-name` (this is used by `which-function-mode` and `easy-kill`).
+
+### Bugs fixed
+
+* [#581](https://github.com/clojure-emacs/clojure-mode/issues/581): Fix font locking not working for keywords starting with a number.
+* [#377](https://github.com/clojure-emacs/clojure-mode/issues/377): Fix everything starting with the prefix `def` being highlighted as a definition form. Now definition forms are enumerated explicitly in the font-locking code, like all other forms.
+* [#638](https://github.com/clojure-emacs/clojure-mode/pull/638): Fix `imenu` with Clojure code in string or comment.
+
+## 5.15.1 (2022-07-30)
+
+### Bugs fixed
+
+* [#625](https://github.com/clojure-emacs/clojure-mode/issues/625): Fix metadata being displayed in `imenu` instead of var name.
+
+## 5.15.0 (2022-07-19)
+
+### Changes
+
+* [#622](https://github.com/clojure-emacs/clojure-mode/issues/622): Add font locking for missing `clojure.core` macros.
+* [#615](https://github.com/clojure-emacs/clojure-mode/issues/615): Support clojure-dart files.
+
+### Bugs fixed
+
+* [#595](https://github.com/clojure-emacs/clojure-mode/issues/595), [#612](https://github.com/clojure-emacs/clojure-mode/issues/612): Fix buffer freezing when typing metadata for a definition.
+
+## 5.14.0 (2022-03-07)
+
+### New features
+
+* Allow additional directories, beyond the default `clj[sc]`, to be correctly formulated by `clojure-expected-ns` via new `defcustom` entitled `clojure-directory-prefixes`
+* Recognize babashka projects (identified by the presence of `bb.edn`).
+* [#601](https://github.com/clojure-emacs/clojure-mode/pull/601): Add new command `clojure-promote-fn-literal` for converting `#()` function literals to `fn` form.
+
+### Changes
+
+* [#604](https://github.com/clojure-emacs/clojure-mode/pull/604): Add `bb` (babashka) to `interpreter-mode-alist`.
+
+### Bugs fixed
+
+* [#608](https://github.com/clojure-emacs/clojure-mode/issues/608): Fix alignment issue involving margin comments at the end of nested forms.
+
+## 5.13.0 (2021-05-05)
+
+### New features
+
+* [#590](https://github.com/clojure-emacs/clojure-mode/pull/590): Extend `clojure-rename-ns-alias` to work on selected regions.
+* [#567](https://github.com/clojure-emacs/clojure-mode/issues/567): Add new commands `clojure-toggle-ignore`, `clojure-toggle-ignore-surrounding-form`, and `clojure-toggle-ignore-defun` for inserting/deleting `#_` ignore forms.
+* [#582](https://github.com/clojure-emacs/clojure-mode/pull/582): Add `clojure-special-arg-indent-factor` to control special argument indentation.
+
+### Bugs fixed
+
+* [#588](https://github.com/clojure-emacs/clojure-mode/pull/588): Fix font-lock for character literals.
+* Stop `clojure-sort-ns` from calling `redisplay`.
+
+### Changes
+
+* [#589](https://github.com/clojure-emacs/clojure-mode/issues/589): Improve font-locking performance on strings with escaped characters.
+* [#571](https://github.com/clojure-emacs/clojure-mode/issues/571): Remove `project.el` integration.
+* [#574](https://github.com/clojure-emacs/clojure-mode/issues/574): Remove `clojure-view-grimoire` command.
+* [#584](https://github.com/clojure-emacs/clojure-mode/issues/584): Align to recent `pcase` changes on Emacs master.
+
+## 5.12.0 (2020-08-13)
+
+### New features
+
+* [#556](https://github.com/clojure-emacs/clojure-mode/issues/556): `clojure-rename-ns-alias` picks up existing aliases for minibuffer completion.
+
+### Bugs fixed
+
+* [#565](https://github.com/clojure-emacs/clojure-mode/issues/565): Fix extra spaces being inserted after quote in paredit-mode.
+* [#544](https://github.com/clojure-emacs/clojure-mode/issues/544): Fix docstring detection when string contains backslash.
+* [#547](https://github.com/clojure-emacs/clojure-mode/issues/547): Fix font-lock regex for character literals for uppercase chars and other symbols.
+* [#556](https://github.com/clojure-emacs/clojure-mode/issues/556): Fix renaming of ns aliases containing regex characters.
+* [#555](https://github.com/clojure-emacs/clojure-mode/issues/555): Fix ns detection for ns forms with complex metadata.
+* [#550](https://github.com/clojure-emacs/clojure-mode/issues/550): Fix `outline-regexp` so `outline-insert-heading` behaves correctly.
+* [#551](https://github.com/clojure-emacs/clojure-mode/issues/551): Indent `clojure-align` region before aligning.
+* [#520](https://github.com/clojure-emacs/clojure-mode/issues/520): Fix allow `clojure-align-cond-forms` to recognize qualified forms.
+* [#404](https://github.com/clojure-emacs/clojure-mode/issues/404)/[#528](https://github.com/clojure-emacs/clojure-mode/issues/528): Fix syntax highlighting for multiple consecutive comment reader macros (`#_#_`).
+
+### Changes
+
+* Inline definition of `clojure-mode-syntax-table` and support `'` quotes in symbols.
+* Enhance add arity refactoring to support a `defn` inside a reader conditional.
+* Enhance add arity refactoring to support new forms: `letfn`, `fn`, `defmacro`, `defmethod`, `defprotocol`, `reify` and `proxy`.
+
+## 5.11.0 (2019-07-16)
+
+### New features
+
+* [#496](https://github.com/clojure-emacs/clojure-mode/issues/496): Highlight `[[wikilinks]]` in comments.
+* [#366](https://github.com/clojure-emacs/clj-refactor.el/issues/366): Add support for renaming ns aliases (`clojure-rename-ns-alias`, default binding `C-c C-r n r`).
+* [#410](https://github.com/clojure-emacs/clojure-mode/issues/410): Add support for adding an arity to a function (`clojure-add-arity`, default binding `C-c C-r a`).
+
+### Bugs fixed
+
+* Dynamic vars whose names contain non-alphanumeric characters are now font-locked correctly.
+* [#445 (comment)](https://github.com/clojure-emacs/clojure-mode/issues/445#issuecomment-340460753): Proper font-locking for namespaced keywords like for example `(s/def ::keyword)`.
+* [#508](https://github.com/clojure-emacs/clojure-mode/issues/508): Fix font-locking for namespaces with metadata.
+* [#506](https://github.com/clojure-emacs/clojure-mode/issues/506): `clojure-mode-display-version` correctly displays the package's version.
+* [#445](https://github.com/clojure-emacs/clojure-mode/issues/445), [#405](https://github.com/clojure-emacs/clojure-mode/issues/405), [#469](https://github.com/clojure-emacs/clojure-mode/issues/469): Correct font-locking on string definitions with docstrings, e.g: `(def foo "doc" "value")`. Correct indentation as well.
+* [#518](https://github.com/clojure-emacs/clojure-mode/issues/518): Fix `clojure-find-ns` when there's an `ns` form inside a string.
+* [#530](https://github.com/clojure-emacs/clojure-mode/pull/530): Prevent electric indentation within inlined docstrings.
+
+### Changes
+
+* [#524](https://github.com/clojure-emacs/clojure-mode/issues/524): Add proper indentation rule for `delay` (same as for `future`).
+* [#538](https://github.com/clojure-emacs/clojure-mode/pull/538): Refactor `clojure-unwind` to take numeric prefix argument for unwinding N steps, and universal argument for unwinding completely. The dedicated `C-c C-r a` binding for `clojure-unwind-all` is now removed and replaced with the universal arg convention `C-u C-c C-r u`.
+
+## 5.10.0 (2019-01-05)
+
+### New features
+
+* Recognize Gradle projects using the new Kotlin DSL (`build.gradle.kts`).
+* [#481](https://github.com/clojure-emacs/clojure-mode/issues/481): Support vertical alignment even in the presence of blank lines, with the new `clojure-align-separator` user option.
+* [#483](https://github.com/clojure-emacs/clojure-mode/issues/483): Support alignment for reader conditionals, with the new `clojure-align-reader-conditionals` user option.
+* [#497](https://github.com/clojure-emacs/clojure-mode/pull/497): Indent "let", "when" and "while" as function form if not at start of a symbol.
+
+### Bugs fixed
+
+* [#489](https://github.com/clojure-emacs/clojure-mode/issues/489): Inserting parens before comment form doesn't move point.
+* [#500](https://github.com/clojure-emacs/clojure-mode/pull/500): Fix project.el integration.
+* [#513](https://github.com/clojure-emacs/clojure-mode/pull/513): Fix incorrect indentation of namespaced map.
+
+### Changes
+
+* Change the accepted values of `clojure-indent-style` from keywords to symbols.
+* [#503](https://github.com/clojure-emacs/clojure-mode/pull/503): Fix Makefile so that we can compile again.
+
+## 5.9.1 (2018-08-27)
+
+### Bugs fixed
+
+* [#485](https://github.com/clojure-emacs/clojure-mode/issues/485): Fix a regression in `end-f-defun`.
+
+## 5.9.0 (2018-08-18)
+
+### Changes
+
+* Add `clojure-toplevel-inside-comment-form` to make forms inside of `(comment ...)` forms appear as top level forms for evaluation and navigation.
+* Require Emacs 25.1+.
+
+## 5.8.2 (2018-08-09)
+
+### Changes
+
+* Disable ns caching by default.
+
+## 5.8.1 (2018-07-03)
+
+### Bugs fixed
+
+* Fix the project.el integration.
+
+## 5.8.0 (2018-06-26)
+
+### New features
+
+* New interactive commands `clojure-show-cache` and `clojure-clear-cache`.
+* Add basic integration with `project.el`.
+* The results of `clojure-project-dir` are cached by default to optimize performance.
+* [#478](https://github.com/clojure-emacs/clojure-mode/issues/478): Cache the result of `clojure-find-ns` to optimize performance.
+
+### Changes
+
+* Indent `fdef` (clojure.spec) like a `def`.
+* Add `shadow-cljs.edn` to the default list of build tool files.
+
 ## 5.7.0 (2018-04-29)
 
 ### New features
@@ -24,7 +302,7 @@
 ### Bugs fixed
 
 * [#458](https://github.com/clojure-emacs/clojure-mode/pull/458): Get correct ns when in middle of ns form with `clojure-find-ns`
-* [#447](https://github.com/clojure-emacs/clojure-mode/issues/241): When `electric-indent-mode` is on, force indentation from within docstrings.
+* [#447](https://github.com/clojure-emacs/clojure-mode/issues/447): When `electric-indent-mode` is on, force indentation from within docstrings.
 * [#438](https://github.com/clojure-emacs/clojure-mode/issues/438): Filling within a doc-string doesn't affect surrounding code.
 * Fix fill-paragraph in multi-line comments.
 * [#443](https://github.com/clojure-emacs/clojure-mode/issues/443): Fix behavior of `clojure-forward-logical-sexp` and `clojure-backward-logical-sexp` with conditional macros.
@@ -70,7 +348,7 @@
 * [#394](https://github.com/clojure-emacs/clojure-mode/issues/394): `?` character is now treated as prefix when outside symbols.
 * [#394](https://github.com/clojure-emacs/clojure-mode/issues/394): `#` character now has prefix syntax class.
 * Fixed indentation of `definterface` to match that of `defprotocol`.
-* [#389](https://github.com/clojure-emacs/clojure-mode/issues/389): Fixed the indentation of `defrecord` and `deftype` multiple airity protocol forms.
+* [#389](https://github.com/clojure-emacs/clojure-mode/issues/389): Fixed the indentation of `defrecord` and `deftype` multiple arity protocol forms.
 * [#393](https://github.com/clojure-emacs/clojure-mode/issues/393): `imenu-generic-expression` is no longer hard-coded and its global value is respected.
 
 ## 5.5.0 (2016-06-25)

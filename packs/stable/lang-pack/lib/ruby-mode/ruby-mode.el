@@ -1045,7 +1045,7 @@ An end of a defun is found by moving forward from the beginning of one."
             (forward-char -1)
             (cond ((looking-at "\\s)")
                    (goto-char (scan-sexps (1+ (point)) -1))
-                   (cl-case (char-before)
+                   (case (char-before)
                      (?% (forward-char -1))
                      ('(?q ?Q ?w ?W ?r ?x)
                       (if (eq (char-before (1- (point))) ?%) (forward-char -2))))
@@ -1061,7 +1061,7 @@ An end of a defun is found by moving forward from the beginning of one."
                   (t
                    (forward-char 1)
                    (while (progn (forward-word -1)
-                                 (cl-case (char-before)
+                                 (case (char-before)
                                    (?_ t)
                                    (?. (forward-char -1) t)
                                    ((?$ ?@)

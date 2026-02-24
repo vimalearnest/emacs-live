@@ -1,6 +1,6 @@
-;;; test-org-tempo.el --- Tests for test-org-tempo.el     -*- lexical-binding: t; -*-
+;;; test-org-tempo.el --- Tests for org-tempo.el     -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017 Rasmus Pank Roulund
+;; Copyright (C) 2017, 2019 Rasmus Pank Roulund
 
 ;; Author: Rasmus Pank Roulund <emacs at pank dot eu>
 
@@ -17,14 +17,14 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
 (require 'org-tempo)
 
 (unless (featurep 'org-tempo)
-  (signal 'missing-test-dependency "org-tempo"))
+  (signal 'missing-test-dependency '("org-tempo")))
 
 (ert-deftest test-org-tempo/completion ()
   "Test that blocks and keywords are expanded correctly by org-tempo."
@@ -53,11 +53,12 @@
 	    (org-cycle)
 	    (buffer-string))))
   ;; Tempo should not expand unknown snippets
-  (equal (org-test-with-temp-text "<k"
+  (should
+   (equal (org-test-with-temp-text "<k"
 	    (org-tempo-setup)
 	    (call-interactively 'org-cycle)
 	    (buffer-string))
-	 "<k"))
+	  "<k")))
 
 (ert-deftest test-org-tempo/space-first-line ()
   "Test space on first line after expansion."

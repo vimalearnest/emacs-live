@@ -821,13 +821,12 @@
                       'dp)
   (easy-menu-add-item facemenu-mouse-menu ()
                       ["Copy Text Properties" hlt-copy-props t] 'dp))
-(when (boundp 'facemenu-menu)
-  (easy-menu-add-item facemenu-menu ()
-                      ["Paste Text Properties to Region"
-                       hlt-yank-props
-                       (and (hlt-nonempty-region-p)  (not buffer-read-only)  hlt-copied-props)]
-                      'dp)
-  (easy-menu-add-item facemenu-menu () ["Copy Text Properties" hlt-copy-props t] 'dp))
+(easy-menu-add-item facemenu-menu ()
+                    ["Paste Text Properties to Region"
+                     hlt-yank-props
+                     (and (hlt-nonempty-region-p)  (not buffer-read-only)  hlt-copied-props)]
+                    'dp)
+(easy-menu-add-item facemenu-menu () ["Copy Text Properties" hlt-copy-props t] 'dp)
  
 ;;(@* "Variables and Faces")
 

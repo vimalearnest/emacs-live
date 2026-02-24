@@ -26,16 +26,26 @@ infodir = $(prefix)/info
 # the branch when undefined.
 GIT_BRANCH =
 
-# Define if you want to include some (or all) files from contrib/lisp
-# just the filename please (no path prefix, no .el suffix), maybe with globbing
-#ORG_ADD_CONTRIB = ox-* # e.g. the contributed exporter
-
 # Where to create temporary files for the testsuite
 # respect TMPDIR if it is already defined in the environment
 TMPDIR ?= /tmp
 testdir = $(TMPDIR)/tmp-orgtest
 
 # Configuration for testing
+# Verbose ERT summary by default for Emacs-28 and above.
+# To override:
+# - Add to local.mk
+#   EMACS_TEST_VERBOSE =
+# - Export EMACS_TEST_VERBOSE environment variable with empty value
+# - Run tests as
+#   EMACS_TEST_VERBOSE= make test [OTHER_ARGUMENTS...]
+#   or as
+#   make test EMACS_TEST_VERBOSE= [OTHER_ARGUMENTS...]
+EMACS_TEST_VERBOSE ?= yes
+ifeq (,$(EMACS_TEST_VERBOSE))
+# Emacs-28 considers empty value as true, fixed in Emacs-29
+unexport EMACS_TEST_VERBOSE
+endif
 # add options before standard load-path
 BTEST_PRE   =
 # add options after standard load path
@@ -43,45 +53,67 @@ BTEST_POST  =
               # -L <path-to>/ert      # needed for Emacs23, Emacs24 has ert built in
               # -L <path-to>/ess      # needed for running R tests
               # -L <path-to>/htmlize  # need at least version 1.34 for source code formatting
-BTEST_OB_LANGUAGES = awk C fortran maxima lilypond octave perl python vala
+BTEST_OB_LANGUAGES = awk C fortran maxima lilypond octave perl python java sqlite eshell calc
               # R                     # requires ESS to be installed and configured
               # ruby                  # requires inf-ruby to be installed and configured
+              # csharp                # requires a .NET SDK to be installed
 # extra packages to require for testing
 BTEST_EXTRA =
               # ess-site  # load ESS for R tests
+# Whether to activate extra debugging facilities for make repro.
+REPRO_DEBUG ?= yes
+# Extra arguments passed to Emacs for make repro.
+# e.g. -l config.el /tmp/bug.org
+REPRO_ARGS ?=
 ##->8-------------------------------------------------------------------
 ## YOU MAY NEED TO ADAPT THESE DEFINITIONS
 ##----------------------------------------------------------------------
 
 # How to run tests
-req-ob-lang = --eval '(require '"'"'ob-$(ob-lang))'
+req-ob-lang = --eval '(require `ob-$(ob-lang))'
 lst-ob-lang = ($(ob-lang) . t)
-req-extra   = --eval '(require '"'"'$(req))'
-BTEST_RE   ?= \\(org\\|ob\\)
+req-extra   = --eval '(require `$(req))'
+BTEST_RE   ?= \\(org\\|ob\\|ox\\)
 BTEST_LOAD  = \
-	--eval '(add-to-list '"'"'load-path (concat default-directory "lisp"))' \
-	--eval '(add-to-list '"'"'load-path (concat default-directory "testing"))'
+	--eval '(add-to-list `load-path (concat default-directory "lisp"))' \
+	--eval '(add-to-list `load-path (concat default-directory "testing"))'
 BTEST_INIT  = $(BTEST_PRE) $(BTEST_LOAD) $(BTEST_POST)
 
-BTEST = $(BATCH) $(BTEST_INIT) \
-	  -l org-batch-test-init \
-	  --eval '(setq \
-		org-batch-test t \
-		org-babel-load-languages \
-		  (quote ($(foreach ob-lang,\
-				$(BTEST_OB_LANGUAGES) emacs-lisp shell org,\
-				$(lst-ob-lang)))) \
-		org-test-select-re "$(BTEST_RE)" \
-		)' \
-	  -l org-loaddefs.el \
-	  -l cl -l testing/org-test.el \
-	  -l ert -l org -l ox \
-	  $(foreach req,$(BTEST_EXTRA),$(req-extra)) \
+BTEST = $(BATCH) $(BTEST_INIT) 						    \
+	  -l org-batch-test-init 					    \
+	  --eval '(setq 						    \
+		org-batch-test t 					    \
+		org-babel-load-languages 				    \
+		  (quote ($(foreach ob-lang,				    \
+				$(BTEST_OB_LANGUAGES) emacs-lisp shell org, \
+				$(lst-ob-lang)))) 			    \
+		org-test-select-re "$(BTEST_RE)" 			    \
+		)' 							    \
+	  -l org-loaddefs.el 						    \
+	  -l testing/org-test.el 					    \
+	  -l ert -l org -l ox -l ol 					    \
+	  $(foreach req,$(BTEST_EXTRA),$(req-extra)) 			    \
 	  --eval '(org-test-run-batch-tests org-test-select-re)'
 
 # Running a plain emacs with no config and this Org mode loaded.  This
 # should be useful for manual testing and verification of problems.
 NOBATCH = $(EMACSQ) $(BTEST_INIT) -l org -f org-version
+
+ifeq ($(REPRO_DEBUG), yes)
+REPRO_INIT = --eval "(setq \
+	debug-on-error t\
+	debug-on-signal nil\
+	debug-on-quit nil\
+	org-element--cache-self-verify 'backtrace\
+	org-element--cache-self-verify-frequency 1.0\
+	org-element--cache-map-statistics t)"
+else
+REPRO_INIT =
+endif
+
+# Running a plain emacs with no config, this Org mode loaded, and
+# debugging facilities activated.
+REPRO = $(NOBATCH) $(BTEST_INIT) $(REPRO_INIT) $(REPRO_ARGS)
 
 # start Emacs with no user and site configuration
 # EMACSQ = -vanilla # XEmacs
@@ -89,11 +121,11 @@ EMACSQ  = $(EMACS)  -Q
 
 # Using emacs in batch mode.
 BATCH	= $(EMACSQ) -batch \
-	  --eval '(setq vc-handled-backends nil org-startup-folded nil)'
+	  --eval '(setq vc-handled-backends nil org-startup-folded nil org-element-cache-persistent nil)'
 
 # Emacs must be started in toplevel directory
 BATCHO	= $(BATCH) \
-	  --eval '(add-to-list '"'"'load-path "./lisp")'
+	  --eval '(add-to-list `load-path "./lisp")'
 
 # How to generate local.mk
 MAKE_LOCAL_MK = $(BATCHO) \
@@ -103,7 +135,7 @@ MAKE_LOCAL_MK = $(BATCHO) \
 
 # Emacs must be started in lisp directory
 BATCHL	= $(BATCH) \
-	  --eval '(add-to-list '"'"'load-path ".")'
+	  --eval '(add-to-list `load-path ".")'
 
 # How to generate org-loaddefs.el
 MAKE_ORG_INSTALL = $(BATCHL) \
@@ -115,7 +147,7 @@ MAKE_ORG_INSTALL = $(BATCHL) \
 MAKE_ORG_VERSION = $(BATCHL) \
 	  --eval '(load "org-compat.el")' \
 	  --eval '(load "../mk/org-fixup.el")' \
-	  --eval '(org-make-org-version "$(ORGVERSION)" "$(GITVERSION)" "'$(datadir)'")'
+	  --eval '(org-make-org-version "$(ORGVERSION)" "$(GITVERSION)")'
 
 # How to byte-compile the whole source directory
 ELCDIR	= $(BATCHL) \
@@ -124,6 +156,10 @@ ELCDIR	= $(BATCHL) \
 # How to byte-compile a single file
 ELC	= $(BATCHL) \
 	  --eval '(batch-byte-compile)'
+
+# How to native-compile a single file
+ELN	= $(BATCHL) \
+	  --eval '(batch-native-compile)'
 
 # How to make a pdf file from a texinfo file
 TEXI2PDF = texi2pdf --batch --clean --expand
@@ -139,7 +175,7 @@ MKDIR	= install -m 755 -d
 MAKEINFO = makeinfo
 
 # How to create the HTML file
-TEXI2HTML = makeinfo --html --number-sections
+TEXI2HTML = makeinfo --html --number-sections --css-ref "https://www.gnu.org/software/emacs/manual.css"
 
 # How to find files
 FIND	= find
@@ -168,9 +204,10 @@ SUDO	= sudo
 INSTALL_INFO = install-info
 
 # target method for 'compile'
-ORGCM	= dirall
+ORGCM	= single
 # ORGCM	= dirall #   1x slowdown compared to default compilation method
 # ORGCM	= single #   4x one Emacs process per compilation
+# ORGCM	= native #   4x one Emacs process per native compilation
 # ORGCM	= source #   5x ditto, but remove compiled file immediately
 # ORGCM	= slint1 #   3x possibly elicit more warnings
 # ORGCM	= slint2 #   7x possibly elicit even more warnings

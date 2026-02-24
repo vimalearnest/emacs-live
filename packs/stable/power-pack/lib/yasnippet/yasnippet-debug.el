@@ -1,6 +1,6 @@
 ;;; yasnippet-debug.el --- debug functions for yasnippet -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010, 2013, 2014, 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2010-2025  Free Software Foundation, Inc.
 
 ;; Author: João Távora
 ;; Keywords: emulations, convenience
@@ -40,9 +40,6 @@
                         ;; Don't require '-L <path>' when debugging.
                         (expand-file-name "yasnippet" yas--loaddir)))
 (require 'cl-lib)
-(eval-when-compile
-  (unless (fboundp 'cl-flet)
-    (defalias 'cl-flet 'flet)))
 (require 'color nil t)
 (require 'edebug)
 (eval-when-compile
@@ -141,7 +138,9 @@
          (decorator-end (overlay-get ov 'after-string))
          (beg (yas-debug-ov-fom-start range))
          (end (yas-debug-ov-fom-end range)))
-    (if (and beg end (not (integerp beg)) (not (integerp end)))
+    (if (and beg end (or (overlayp range)
+                         (and (not (integerp beg))
+                              (not (integerp end)))))
         (propertize (format "from %d to %d" (+ beg) (+ end))
                     'cursor-sensor-functions
                     `(,(lambda (_window _oldpos dir)
@@ -155,7 +154,7 @@
       "<dead>")))
 
 (defmacro yas-debug-with-tracebuf (outbuf &rest body)
-  (declare (indent 1))
+  (declare (indent 1) (debug (sexp body)))
   (let ((tracebuf-var (make-symbol "tracebuf")))
     `(let ((,tracebuf-var (or ,outbuf (get-buffer-create "*YASnippet trace*"))))
        (unless (eq ,tracebuf-var (current-buffer))
@@ -222,13 +221,13 @@
   (setq yas-debug-undo value)
   (yas--message 3 "debug undo %sabled" (if yas-debug-undo "en" "dis")))
 
-(defadvice yas--snippet-parse-create (before yas-debug-target-snippet (snippet))
+(defun yas-debug--target-snippet (snippet)
   (add-to-list 'yas-debug-target-snippets snippet))
 
-(defadvice yas--commit-snippet (after yas-debug-untarget-snippet (snippet))
+(defun yas-debug--untarget-snippet (snippet)
   (setq yas-debug-target-snippets
         (remq snippet yas-debug-target-snippets))
-  (maphash (lambda (k color-ov)
+  (maphash (lambda (_k color-ov)
              (delete-overlay (cdr color-ov)))
            yas-debug-live-indicators)
   (clrhash yas-debug-live-indicators))
@@ -252,6 +251,8 @@ buffer-locally, otherwise install it globally.  If HOOK is
             (setq yas-debug-target-snippets
                   (cl-delete-if-not #'yas--snippet-p yas-debug-target-snippets)))
           (let ((yas-debug-recently-live-indicators nil))
+            (printf "(length yas--snippets-snippets) => %d\n"
+                    (length yas--active-snippets))
             (dolist (snippet (or yas-debug-target-snippets
                                  (yas-active-snippets)))
               (printf "snippet %d\n" (yas--snippet-id snippet))
@@ -267,10 +268,8 @@ buffer-locally, otherwise install it globally.  If HOOK is
                      do (printf "%S\n" undo-elem))))
         (when hook
           (setq yas-debug-target-buffer (current-buffer))
-          (ad-enable-advice 'yas--snippet-parse-create 'before 'yas-debug-target-snippet)
-          (ad-activate 'yas--snippet-parse-create)
-          (ad-enable-advice 'yas--commit-snippet 'after 'yas-debug-untarget-snippet)
-          (ad-activate 'yas--commit-snippet)
+          (advice-add 'yas--snippet-parse-create :before #'yas-debug--target-snippet)
+          (advice-add 'yas--commit-snippet :after #'yas-debug--untarget-snippet)
           (add-hook 'post-command-hook #'yas-debug-snippets
                     nil (eq hook 'snippet-navigation))
           ;; Window management is slapped together, it does what I

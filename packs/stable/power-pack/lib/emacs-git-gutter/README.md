@@ -1,9 +1,13 @@
-# git-gutter.el [![travis badge][travis-badge]][travis-link] [![melpa badge][melpa-badge]][melpa-link] [![melpa stable badge][melpa-stable-badge]][melpa-stable-link]
+# git-gutter.el
+
+[![melpa badge][melpa-badge]][melpa-link]
+[![melpa stable badge][melpa-stable-badge]][melpa-stable-link]
+[![gh actions badge][gh-actions-badge]][gh-actions-link]
 
 ## Introduction
 
-`git-gutter.el` is port of [GitGutter](https://github.com/jisaacks/GitGutter)
-which is a plugin of Sublime Text.
+`git-gutter.el` is an Emacs port of the Sublime Text plugin
+[GitGutter](https://github.com/jisaacks/GitGutter).
 
 
 ## Features
@@ -22,34 +26,35 @@ which is a plugin of Sublime Text.
 
 ## Requirements
 
-* Emacs 24 or higher
+* Emacs 25.1 or higher
 * [Git](http://git-scm.com/)(1.7.0 or higher)
 
 
 ## git-gutter.el vs [git-gutter-fringe.el](https://github.com/syohex/emacs-git-gutter-fringe)
 
-|                      | git-gutter.el   | git-gutter-fringe.el |
-|:---------------------|:---------------:|:--------------------:|
-| Work in tty frame    | OK              | NG                   |
-| Work with linum-mode | OK(experimental)| OK                   |
-| Show on right side   | NG              | OK                   |
-| More configurable    | OK              | NG                   |
+|                      | git-gutter.el     | git-gutter-fringe.el |
+|:---------------------|:-----------------:|:--------------------:|
+| Work in tty frame    | OK                | unsupported          |
+| Work with linum-mode | OK(experimental)  | OK                   |
+| Show on right side   | unsupported       | OK                   |
+| configurable         | more configurable | less configurable    |
 
 
 ## Installation
 
 You can install `git-gutter.el` from [MELPA](http://melpa.org) with package.el
-(`M-x package-install git-gutter`).
-
-And you can also install it with [el-get](https://github.com/dimitri/el-get).
+(`M-x package-install git-gutter`), with [el-get](https://github.com/dimitri/el-get),
+or with another package manager of your choice
 
 
 ## Global Minor Mode and Minor Mode
 
-`git-gutter.el` provides global minor-mode(`global-git-gutter-mode`) and minor-mode(`git-gutter-mode`).
+`git-gutter.el` provides a global minor-mode(`global-git-gutter-mode`)
+and minor-mode(`git-gutter-mode`).
 
-If you want to use `git-gutter` for files in git repository.
-You add following s-exp in your configuration file(`~/.emacs.d/init.el` or `~/.emacs`).
+If you want to use `git-gutter` for files in git repository.  You add
+following s-exp in your configuration file(`~/.emacs.d/init.el` or
+`~/.emacs`).
 
 ```lisp
 (global-git-gutter-mode +1)
@@ -86,7 +91,10 @@ Mark current hunk.
 
 #### `git-gutter:set-start-revision`
 
-Set start revision where got diff(`git diff`, `hg diff` or `bzr diff`) from.
+Set the start revision from which git-gutter performs the diffs.
+
+You can also set the variable `git-gutter:start-revision` as a
+directory-local variable.
 
 #### `git-gutter:popup-hunk`
 
@@ -149,6 +157,17 @@ Update git-gutter information of buffers in all visible window.
 (global-set-key (kbd "C-x v SPC") #'git-gutter:mark-hunk)
 ```
 
+## Directory-local variables
+
+### Set starting revision for diffs
+
+Using directory-local variables, you can set the start revision for diffs
+for any file in the current directory:
+
+``` lisp
+;;; .dir-locals.el
+((prog-mode . ((git-gutter:start-revision . "my-branch"))))
+```
 
 ## Customize
 
@@ -358,11 +377,11 @@ code you changed etc. To display them in mode-line is also useful.
 
 #### `(git-gutter:buffer-hunks)`
 
-Cound unstaged hunks in current buffer.
+Count unstaged hunks in current buffer.
 
 #### `(git-gutter:all-hunks)`
 
-Cound unstaged hunks in all buffers
+Count unstaged hunks in all buffers
 
 #### `(git-gutter:statistic)`
 
@@ -388,9 +407,9 @@ Vim version of GitGutter
 Fork of `git-gutter.el`. Some features which are not provided `git-gutter.el` provides.
 However git-gutter-plus updates diff information synchronously.
 
-[travis-badge]: https://travis-ci.org/syohex/emacs-git-gutter.svg
-[travis-link]: https://travis-ci.org/syohex/emacs-git-gutter
 [melpa-link]: http://melpa.org/#/git-gutter
 [melpa-stable-link]: http://stable.melpa.org/#/git-gutter
+[gh-actions-link]: https://github.com/emacsorphanage/git-gutter/actions
 [melpa-badge]: http://melpa.org/packages/git-gutter-badge.svg
 [melpa-stable-badge]: http://stable.melpa.org/packages/git-gutter-badge.svg
+[gh-actions-badge]: https://github.com/emacsorphanage/git-gutter/workflows/CI/badge.svg

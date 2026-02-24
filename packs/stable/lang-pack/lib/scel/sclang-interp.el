@@ -287,7 +287,7 @@ If EOB-P is non-nil, positions cursor at end of buffer."
 (defun sclang-make-options ()
   (let ((default-directory "")
 	(res ()))
-    (cl-flet ((append-option
+    (flet ((append-option
 	    (option &optional value)
 	    (setq res (append res (list option) (and value (list value))))))
       (if (file-directory-p sclang-runtime-directory)
@@ -341,7 +341,7 @@ If EOB-P is non-nil, positions cursor at end of buffer."
 	  (i 0))
       (while (and (sclang-get-process)
 		  (< i tries))
-	(cl-incf i)
+	(incf i)
 	(sit-for 0.5))))
   (sclang-kill)
   (sclang-stop-command-process))
@@ -593,7 +593,7 @@ if PRINT-P is non-nil. Return STRING if successful, otherwise nil."
     (if (and (processp proc) (eq (process-status proc) 'run))
 	(let ((time (current-time)) (tick 10000) elt)
 	  (sclang-perform-command 'evalSCLang string time)
-	  (while (and (> (cl-decf tick) 0)
+	  (while (and (> (decf tick) 0)
 		      (not (setq elt (find time sclang-eval-results
 					   :key #'car :test #'equal))))
 	    (accept-process-output proc 0 100))
