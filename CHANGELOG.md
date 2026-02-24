@@ -1,5 +1,25 @@
 # Emacs Live Changelog
 
+## Emacs 30.1 Compatibility (Feb 2026)
+
+* Fix `defmethod` removed in Emacs 30 — replaced with `cl-defmethod` in marshal.el and gh library
+* Fix eager macro-expansion (`excessive-lisp-nesting`) — byte-compiled yasnippet and undo-tree
+* Fix `global-linum-mode` removed in Emacs 30 — replaced with `(bound-and-true-p global-linum-mode)` in git-gutter.el
+* Fix `facemenu-menu` removed in Emacs 30 — wrapped calls with `(when (boundp 'facemenu-menu) ...)` in highlight.el
+* Fix bundled `seq.el` infinite recursion with Emacs 30 built-in — only load bundled seq on Emacs < 25
+* Fix 163 obsolete `cl` package aliases across 35 files — replaced with `cl-` prefixed equivalents
+* Switch to dev packs — all packs now loaded from `packs/dev/` using updated submodules
+* Replace ac-cider/auto-complete with company-mode in clojure-pack — ac-cider is abandoned; cider 1.22+ uses capf natively
+* Add new submodules: company-mode, parseedn, parseclj, sesman, cond-let, llama, treepy, transient
+* Pin magit to v4.5.0 — stable release; update ghub, with-editor, transient load paths for lisp/ subdirectory
+* Fix `defadvice` → `advice-add` in eval-sexp-fu — rewrite flash command macro for Emacs 30
+* Fix obsolete `yas/` API in org-mode config — update to `yas-` prefixed names
+* Fix `preceding-sexp` → `elisp--preceding-sexp` in highlight-flash-conf.el
+* Fix `package-initialize` redundant call in `~/.emacs-live.el` — Emacs 27+ calls it automatically
+* Fix org-loaddefs.el missing after fresh clone — copy tracked file into org-mode/lisp/ at startup
+* Add `lexical-binding: t` to org-pack init and config files
+* Sync stable packs from dev packs
+
 ## 1.0-BETA-25 (Thurs 4th Sept 2014)
 * Update many, many dependencies (As usual)
 * Move to CIDER 0.7.0
